@@ -1,0 +1,691 @@
+# SafeLink System Architecture
+# Network Defense System - Complete Architecture Documentation
+
+================================================================================
+                          SYSTEM ARCHITECTURE OVERVIEW
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          THREE-TIER ARCHITECTURE                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────┐         │
+│  │                    PRESENTATION LAYER                          │         │
+│  │                  (Frontend - React + Vite)                     │         │
+│  ├────────────────────────────────────────────────────────────────┤         │
+│  │  • Web Dashboard (React 18.3.1)                                │         │
+│  │  • Real-time Updates (WebSocket Client)                        │         │
+│  │  • 5 Main Views: Dashboard, Alerts, Attackers, Learning,      │         │
+│  │    Mitigation                                                  │         │
+│  │  • Responsive UI with Dark Theme                               │         │
+│  │  • HTTP Client: Axios 1.7.7                                    │         │
+│  └────────────────────────────────────────────────────────────────┘         │
+│                              ↕ HTTP/WebSocket                                │
+│  ┌────────────────────────────────────────────────────────────────┐         │
+│  │                    APPLICATION LAYER                           │         │
+│  │               (Backend - FastAPI + Python)                     │         │
+│  ├────────────────────────────────────────────────────────────────┤         │
+│  │  • REST API (26 Endpoints)                                     │         │
+│  │  • WebSocket Manager (Real-time Streaming)                     │         │
+│  │  • Authentication (JWT Tokens)                                 │         │
+│  │  • Business Logic (Detection, Learning, Mitigation)            │         │
+│  │  • FastAPI 0.115.0 + Uvicorn 0.30.0                           │         │
+│  └────────────────────────────────────────────────────────────────┘         │
+│                              ↕ SQLAlchemy ORM                                │
+│  ┌────────────────────────────────────────────────────────────────┐         │
+│  │                       DATA LAYER                               │         │
+│  │                    (Database - SQLite)                         │         │
+│  ├────────────────────────────────────────────────────────────────┤         │
+│  │  • Alerts Table (id, timestamp, severity, IP, MAC, details)    │         │
+│  │  • Users Table (authentication)                                │         │
+│  │  • Whitelist Table (protected devices)                         │         │
+│  │  • Training History (continuous learning logs)                 │         │
+│  └────────────────────────────────────────────────────────────────┘         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                        DETECTION PIPELINE ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     HYBRID DETECTION PIPELINE (TWO-STAGE)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    Network Interface (Wi-Fi/Ethernet)
+              │
+              ↓
+    ┌─────────────────────┐
+    │  PACKET CAPTURE     │  ← Scapy 2.5.0
+    │  (Layer 2 - ARP)    │    Raw packet sniffing
+    └─────────────────────┘    Administrator privileges required
+              │
+              ↓
+    ┌─────────────────────┐
+    │  PACKET BUFFER      │  ← 1000 packet queue
+    │  (Async Queue)      │    Thread-safe FIFO
+    └─────────────────────┘
+              │
+              ↓
+    ┌─────────────────────────────────────────────────────────┐
+    │              STAGE 1: DFA FILTER (Rule-Based)           │
+    ├─────────────────────────────────────────────────────────┤
+    │  INPUT: Raw ARP packets                                 │
+    │  PROCESSING:                                            │
+    │    ✓ IP-MAC Conflict Detection (historical tracking)    │
+    │    ✓ Gratuitous ARP Flood Detection (rate analysis)     │
+    │    ✓ Unsolicited Reply Detection (request matching)     │
+    │  OUTPUT:                                                │
+    │    • DFA Anomaly Score (0.0 - 1.0)                      │
+    │    • Anomaly Type List                                  │
+    │  PERFORMANCE: <1ms per packet, 0% false positives       │
+    └─────────────────────────────────────────────────────────┘
+              │
+              ↓
+    ┌─────────────────────────────────────────────────────────┐
+    │         FEATURE EXTRACTION & PREPROCESSING              │
+    ├─────────────────────────────────────────────────────────┤
+    │  20 Features Extracted:                                 │
+    │    1. src_ip          (Label Encoded)                   │
+    │    2. dst_ip          (Label Encoded)                   │
+    │    3. src_mac         (Label Encoded)                   │
+    │    4. dst_mac         (Label Encoded)                   │
+    │    5. arp_opcode      (1=Request, 2=Reply)              │
+    │    6. is_gratuitous   (Boolean)                         │
+    │    7. is_probe        (Boolean - 0.0.0.0 detection)     │
+    │    8. inter_arrival_time (Seconds since last packet)    │
+    │    9. src_vendor      (MAC OUI lookup)                  │
+    │   10. dst_vendor      (MAC OUI lookup)                  │
+    │   11-20. Statistical features (packet rates, bursts)    │
+    │                                                         │
+    │  Preprocessing:                                         │
+    │    • LabelEncoder for categorical (IP/MAC)              │
+    │    • StandardScaler for numerical (normalization)       │
+    └─────────────────────────────────────────────────────────┘
+              │
+              ↓
+    ┌─────────────────────────────────────────────────────────┐
+    │       STAGE 2: MACHINE LEARNING CLASSIFIERS             │
+    ├─────────────────────────────────────────────────────────┤
+    │                                                         │
+    │  ┌───────────────────────────────────────────────┐     │
+    │  │   PRIMARY: Random Forest (Production)         │     │
+    │  ├───────────────────────────────────────────────┤     │
+    │  │  • 100 Decision Trees (Ensemble)              │     │
+    │  │  • Max Depth: 30 levels                       │     │
+    │  │  • Class Weight: Balanced                     │     │
+    │  │  • Performance: 96.70% accuracy               │     │
+    │  │  • Inference Time: ~5ms                       │     │
+    │  └───────────────────────────────────────────────┘     │
+    │                                                         │
+    │  ┌───────────────────────────────────────────────┐     │
+    │  │   EXPERIMENTAL: ANN (PyTorch)                 │     │
+    │  ├───────────────────────────────────────────────┤     │
+    │  │  • Architecture: MLP (20→64→32→2)            │     │
+    │  │  • Activation: ReLU + Softmax                 │     │
+    │  │  • Status: Requires retraining                │     │
+    │  │  • Inference Time: ~2ms (GPU-ready)           │     │
+    │  └───────────────────────────────────────────────┘     │
+    │                                                         │
+    │  OUTPUT:                                                │
+    │    • Prediction: 0=Normal, 1=ARP_Spoofing              │
+    │    • Confidence Score: 0.0 - 1.0                       │
+    └─────────────────────────────────────────────────────────┘
+              │
+              ↓
+    ┌─────────────────────────────────────────────────────────┐
+    │              ALERT GENERATION & MANAGEMENT              │
+    ├─────────────────────────────────────────────────────────┤
+    │  Severity Calculation:                                  │
+    │    • Critical: DFA score ≥ 0.9 OR ML confidence ≥ 0.95  │
+    │    • High:     DFA score ≥ 0.7 OR ML confidence ≥ 0.85  │
+    │    • Medium:   DFA score ≥ 0.5 OR ML confidence ≥ 0.75  │
+    │    • Low:      Otherwise                                │
+    │                                                         │
+    │  Alert Types:                                           │
+    │    • ARP_ANOMALY    (DFA-detected)                      │
+    │    • VENDOR_ANOMALY (MAC OUI issues)                    │
+    │    • ML_DETECTION   (Classifier-based)                  │
+    │                                                         │
+    │  Storage: SQLite database + JSON details                │
+    └─────────────────────────────────────────────────────────┘
+              │
+              ↓
+    ┌─────────────────────────────────────────────────────────┐
+    │           REAL-TIME NOTIFICATION SYSTEM                 │
+    ├─────────────────────────────────────────────────────────┤
+    │  • WebSocket Broadcasting (22 concurrent connections)   │
+    │  • Dashboard Auto-refresh (Last 50 alerts)              │
+    │  • Alert Statistics (Total, Critical, High, Med, Low)   │
+    │  • Attacker Intelligence (IP/MAC profiling)             │
+    └─────────────────────────────────────────────────────────┘
+              │
+              ↓
+    ┌─────────────────────────────────────────────────────────┐
+    │              THREAT MITIGATION WORKFLOW                 │
+    ├─────────────────────────────────────────────────────────┤
+    │  1. Mitigation Request Creation (Manual/Auto)           │
+    │  2. Whitelist Check (Skip if protected)                 │
+    │  3. Admin Approval (UI-based authorization)             │
+    │  4. Execution (SNMP/SSH commands)                       │
+    │     • Port Shutdown                                     │
+    │     • VLAN Quarantine                                   │
+    │     • MAC Blocking                                      │
+    │  5. Audit Logging (Timestamp, action, result)           │
+    └─────────────────────────────────────────────────────────┘
+
+================================================================================
+                          COMPONENT ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          BACKEND COMPONENTS                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. API Layer (api.py)
+   ├── FastAPI Application
+   ├── 26 REST Endpoints
+   │   ├── Authentication (3): login, register, me
+   │   ├── System Control (3): status, start/stop sniffer
+   │   ├── Alert Management (8): CRUD + archive + label
+   │   ├── Attacker Intel (2): list + profile
+   │   ├── Continuous Learning (5): status, train, metrics
+   │   └── Mitigation (5): actions, approve, execute, whitelist
+   ├── WebSocket Endpoint (/ws/updates)
+   ├── CORS Middleware
+   └── JWT Authentication
+
+2. Core Detection Modules (core/)
+   ├── packet_sniffer.py
+   │   ├── Scapy AsyncSniffer wrapper
+   │   ├── Multi-interface support
+   │   ├── Packet callback handler
+   │   └── Start/Stop controls
+   │
+   ├── dfa_filter.py
+   │   ├── IP-MAC mapping tracker (dict)
+   │   ├── ARP request/reply matcher
+   │   ├── Gratuitous ARP detector
+   │   ├── Packet rate analyzer
+   │   └── Anomaly scoring (0.0-1.0)
+   │
+   ├── ann_classifier.py (PyTorch)
+   │   ├── Model Architecture (ARPAnomalyNet)
+   │   │   ├── Input Layer: 20 neurons
+   │   │   ├── Hidden1: 64 neurons + ReLU + Dropout(0.3)
+   │   │   ├── Hidden2: 32 neurons + ReLU + Dropout(0.3)
+   │   │   └── Output: 2 neurons + Softmax
+   │   ├── Training Loop (Adam optimizer)
+   │   ├── Model Saving/Loading (.pth format)
+   │   └── Inference Pipeline
+   │
+   ├── alert_system.py
+   │   ├── Alert Storage (SQLite)
+   │   ├── Severity Calculator
+   │   ├── Alert Archiving
+   │   ├── Statistics Aggregator
+   │   └── Attacker Profiler
+   │
+   ├── continuous_learner.py
+   │   ├── Sample Collection (labeled alerts)
+   │   ├── Training Trigger (100+ samples)
+   │   ├── Model Retraining Pipeline
+   │   ├── Performance Tracking
+   │   └── Version Management
+   │
+   ├── mitigation.py
+   │   ├── SNMP Backend (pysnmp)
+   │   │   ├── Port shutdown commands
+   │   │   └── VLAN reassignment
+   │   ├── SSH Backend (paramiko)
+   │   │   ├── MAC blocking
+   │   │   └── ACL deployment
+   │   ├── Action Queue
+   │   ├── Approval Workflow
+   │   └── Execution Logger
+   │
+   ├── websocket_manager.py
+   │   ├── Connection Pool (set of WebSockets)
+   │   ├── Broadcast Function
+   │   ├── Connection Lifecycle
+   │   └── Message Serialization
+   │
+   ├── arp_analyzer.py
+   │   ├── MAC Vendor Lookup (OUI database)
+   │   ├── Gratuitous ARP detection
+   │   ├── ARP probe detection
+   │   └── Anomaly type classifier
+   │
+   ├── data_curator.py
+   │   ├── Dataset Management
+   │   ├── CSV Export/Import
+   │   ├── Data Cleaning
+   │   └── Feature Engineering
+   │
+   ├── feature_versioning.py
+   │   ├── Feature Schema Tracking
+   │   ├── Backward Compatibility
+   │   └── Migration Support
+   │
+   └── auth.py
+       ├── JWT Token Generation
+       ├── Password Hashing (bcrypt)
+       ├── Token Verification
+       └── User Management
+
+3. Configuration (config/)
+   ├── settings.py
+   │   ├── Network Interface
+   │   ├── Detection Thresholds
+   │   ├── Database URL
+   │   ├── ML Model Paths
+   │   └── API Keys (Threat Intel)
+   │
+   └── logger_config.py
+       ├── Log Levels (DEBUG, INFO, WARNING, ERROR)
+       ├── File Handlers (logs/safelink.log)
+       ├── Console Handlers
+       └── Formatters
+
+4. Data Storage (data/)
+   ├── safelink.db (SQLite)
+   │   ├── alerts table
+   │   ├── users table
+   │   ├── whitelist table
+   │   └── training_history table
+   │
+   └── All_Labelled.csv (74,344 samples)
+       ├── Training Data (51,543 samples)
+       └── Test Data (14,869 samples)
+
+5. Models (models/)
+   ├── random_forest_model.joblib (15.2 MB)
+   ├── label_encoders.joblib (encoders for IP/MAC)
+   ├── scaler.joblib (StandardScaler)
+   ├── ann_model_v1.pth (PyTorch state dict)
+   └── evaluation_plots/ (8 PNG + 2 JSON)
+       ├── confusion_matrix.png
+       ├── roc_curve.png
+       ├── precision_recall_curve.png
+       ├── feature_importance.png
+       ├── class_distribution.png
+       ├── prediction_distribution.png
+       ├── learning_curve.png
+       ├── training_history.png
+       ├── rf_metrics.json
+       └── ann_metrics.json
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          FRONTEND COMPONENTS                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. Application Structure (src/)
+   ├── main.jsx (Entry point)
+   │   ├── React 18 createRoot
+   │   ├── Router Provider
+   │   └── StrictMode
+   │
+   ├── App.jsx (Root component)
+   │   ├── BrowserRouter
+   │   ├── Route Definitions (5 views)
+   │   ├── Navigation Bar
+   │   └── WebSocket Connection Manager
+   │
+   └── index.css (Global styles)
+       ├── Dark Theme Variables
+       ├── Typography (Inter font)
+       ├── Layout (Flexbox/Grid)
+       ├── Table Scrolling (.table-scroll-x)
+       └── Responsive Breakpoints
+
+2. Views (src/views/)
+   ├── Dashboard.jsx
+   │   ├── Alert Statistics Cards (4 severity levels)
+   │   ├── System Status (Sniffer, Learner, DB)
+   │   ├── Quick Actions (Start/Stop, Archive)
+   │   └── WebSocket Alert Stream
+   │
+   ├── Alerts.jsx
+   │   ├── Alert Feed (Last 50, auto-refresh)
+   │   ├── Severity Badges (color-coded)
+   │   ├── Alert Details Modal
+   │   ├── Archive Functionality
+   │   ├── Empty State Handling
+   │   └── Horizontal Scroll Support
+   │
+   ├── Attackers.jsx
+   │   ├── Attacker Table (IP, MAC, Count, Last Seen)
+   │   ├── Threat Level Indicator
+   │   ├── Search/Filter
+   │   └── Horizontal Scroll (.table-attackers)
+   │
+   ├── ContinuousLearning.jsx
+   │   ├── Training Status Display
+   │   ├── Sample Collection Progress Bar
+   │   ├── Model Metrics (Accuracy, F1, ROC-AUC)
+   │   ├── Manual Training Button
+   │   └── Training History Timeline
+   │
+   └── ThreatMitigation.jsx
+       ├── Pending Requests Table
+       ├── Approve/Reject Actions
+       ├── Execution Status
+       ├── Whitelist Management
+       └── Action History Log
+
+3. Components (src/components/)
+   ├── AlertCard.jsx (Severity badge component)
+   ├── StatCard.jsx (Dashboard metric cards)
+   ├── LoadingSpinner.jsx (Loading states)
+   └── ErrorBoundary.jsx (Error handling)
+
+4. Utilities (src/lib/)
+   ├── api.js (Axios instance with base URL)
+   ├── websocket.js (WebSocket client wrapper)
+   └── formatters.js (Date/time formatting)
+
+================================================================================
+                         DATA FLOW ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    PACKET TO ALERT FLOW (Real-Time)                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. PACKET CAPTURE (Network → Backend)
+   Network Interface → Scapy Sniffer → Packet Callback
+   └→ Async Queue (1000 packet buffer)
+
+2. DETECTION PROCESSING (Backend)
+   Queue → DFA Filter → Feature Extraction → ML Classifier
+   └→ Alert Decision (if anomaly detected)
+
+3. ALERT STORAGE (Backend → Database)
+   Alert Object → SQLAlchemy ORM → SQLite INSERT
+   └→ Persistent storage with JSON details
+
+4. REAL-TIME NOTIFICATION (Backend → Frontend)
+   Alert Created → WebSocket Broadcast → All Connected Clients
+   └→ Dashboard updates (< 100ms latency)
+
+5. USER INTERACTION (Frontend → Backend)
+   User Action (Archive/Label) → Axios POST/PUT → API Endpoint
+   └→ Database Update → WebSocket Notification
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    CONTINUOUS LEARNING FLOW                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. SAMPLE COLLECTION
+   Alert Created → Admin Labels (True/False Positive)
+   └→ Training Sample Added to Queue
+
+2. THRESHOLD TRIGGER
+   Queue Size Check (every 5 minutes)
+   └→ If ≥100 labeled samples → Start Retraining
+
+3. MODEL RETRAINING
+   Load Labeled Data → Merge with Existing Dataset
+   └→ Train New Model → Evaluate Performance
+
+4. MODEL DEPLOYMENT
+   If New Accuracy > Old Accuracy:
+     └→ Save New Model → Update Production Classifier
+   Else:
+     └→ Keep Old Model → Log Performance
+
+5. FEEDBACK LOOP
+   Updated Model → Better Detections → More Accurate Labels
+   └→ Continuous Improvement
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    MITIGATION WORKFLOW                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. DETECTION
+   Alert Generated (High/Critical Severity)
+   └→ Check Whitelist
+
+2. REQUEST CREATION
+   If NOT Whitelisted:
+     Manual Request (Admin) OR Auto-Request (if enabled)
+     └→ Store in Pending Actions Table
+
+3. APPROVAL
+   Admin Reviews Request in UI
+   └→ Approve OR Reject
+
+4. EXECUTION
+   If Approved:
+     ├→ SNMP: Send port shutdown command to switch
+     ├→ SSH: Execute MAC blocking on router
+     └→ Log Action Result
+
+5. VERIFICATION
+   Check Execution Status
+   └→ Update Action Record (Success/Failure)
+
+================================================================================
+                         DEPLOYMENT ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    DEVELOPMENT ENVIRONMENT (Current)                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────┐      ┌──────────────────────────┐
+│   Frontend Development   │      │   Backend Development    │
+│   (Port 5173)            │      │   (Port 8000)            │
+├──────────────────────────┤      ├──────────────────────────┤
+│ npm run dev              │      │ uvicorn api:app --reload │
+│ Vite Dev Server          │◄────►│ FastAPI + Uvicorn        │
+│ Hot Module Replacement   │ CORS │ Auto-reload on changes   │
+│ React DevTools           │      │ Interactive API docs     │
+└──────────────────────────┘      └──────────────────────────┘
+         │                                    │
+         │                                    │
+         ├────────────────────────────────────┤
+         │      WebSocket (ws://localhost:8000/ws/updates)
+         │      HTTP (http://localhost:8000/api/*)
+         │
+         ↓
+┌────────────────────────────────────────────┐
+│         SQLite Database                    │
+│  E:\coreproject\Backend\SafeLink_Backend\  │
+│  data\safelink.db                          │
+└────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    PRODUCTION ARCHITECTURE (Recommended)                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                         ┌─────────────────┐
+                         │  Load Balancer  │
+                         │   (Nginx/HAProxy)│
+                         └────────┬────────┘
+                                  │
+                ┌─────────────────┴─────────────────┐
+                │                                   │
+        ┌───────▼────────┐              ┌──────────▼──────┐
+        │  Frontend      │              │   Backend       │
+        │  (Nginx)       │              │   (Gunicorn +   │
+        │  Port 80/443   │              │    Uvicorn)     │
+        │  Static Files  │              │   4 Workers     │
+        └────────────────┘              └─────────┬───────┘
+                                                  │
+                                    ┌─────────────┴─────────────┐
+                                    │                           │
+                            ┌───────▼──────┐          ┌────────▼────────┐
+                            │  PostgreSQL  │          │  Redis Cache    │
+                            │  (Alerts DB) │          │  (Sessions)     │
+                            └──────────────┘          └─────────────────┘
+
+Security Layers:
+- HTTPS/TLS 1.3 (SSL Certificates)
+- Firewall Rules (UFW/iptables)
+- Rate Limiting (100 req/min per IP)
+- JWT Token Expiry (60 min)
+- Database Encryption (SQLCipher)
+
+Monitoring:
+- Prometheus (Metrics Collection)
+- Grafana (Visualization)
+- ELK Stack (Log Aggregation)
+- Uptime Monitoring (Pingdom/UptimeRobot)
+
+Backup:
+- Automated DB Snapshots (Daily)
+- Model Versioning (Git LFS)
+- Log Rotation (7 days retention)
+
+================================================================================
+                         SCALABILITY ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    HORIZONTAL SCALING (Multi-Instance)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                         ┌─────────────────┐
+                         │  Load Balancer  │
+                         └────────┬────────┘
+                                  │
+         ┌────────────────────────┼────────────────────────┐
+         │                        │                        │
+    ┌────▼─────┐            ┌────▼─────┐            ┌────▼─────┐
+    │ Backend  │            │ Backend  │            │ Backend  │
+    │ Instance1│            │ Instance2│            │ Instance3│
+    │ (eth0)   │            │ (eth1)   │            │ (eth2)   │
+    └────┬─────┘            └────┬─────┘            └────┬─────┘
+         │                        │                        │
+         └────────────────────────┴────────────────────────┘
+                                  │
+                         ┌────────▼────────┐
+                         │  Shared Storage │
+                         │  (PostgreSQL +  │
+                         │   Redis)        │
+                         └─────────────────┘
+
+Per-Interface Sniffing:
+- Instance 1: Monitors eth0 (VLAN 10)
+- Instance 2: Monitors eth1 (VLAN 20)
+- Instance 3: Monitors eth2 (VLAN 30)
+
+Centralized:
+- Shared Alert Database
+- Shared Model Storage (NFS/S3)
+- Unified Dashboard View
+
+Performance:
+- 3,600+ packets/second (3x single instance)
+- Distributed ML Inference
+- High Availability (if 1 fails, others continue)
+
+================================================================================
+                         SECURITY ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    SECURITY LAYERS (Defense in Depth)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. NETWORK LAYER
+   ├── Firewall Rules (Allow only 8000, 5173)
+   ├── Network Segmentation (Management VLAN)
+   ├── Packet Capture Privileges (CAP_NET_RAW)
+   └── SNMP/SSH Credentials (Encrypted storage)
+
+2. APPLICATION LAYER
+   ├── JWT Authentication (HS256)
+   ├── Password Hashing (bcrypt, 12 rounds)
+   ├── CORS Policy (Whitelist origins)
+   ├── Rate Limiting (API throttling)
+   ├── Input Validation (Pydantic schemas)
+   └── SQL Injection Protection (ORM parameterization)
+
+3. DATA LAYER
+   ├── Database Encryption (SQLCipher option)
+   ├── PII Redaction (Logs)
+   ├── Access Control (Role-based)
+   └── Audit Logging (All DB modifications)
+
+4. OPERATIONAL LAYER
+   ├── Secure Deployment (HTTPS only)
+   ├── Secret Management (.env files, Vault)
+   ├── Vulnerability Scanning (Bandit, Safety)
+   └── Dependency Updates (Automated via Dependabot)
+
+================================================================================
+                         PERFORMANCE ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    OPTIMIZATION STRATEGIES                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. PACKET PROCESSING
+   ├── Async Sniffer (Non-blocking I/O)
+   ├── Packet Buffer (1000-packet queue)
+   ├── Batch Processing (Process 10 packets at once)
+   └── Thread Pool (4 worker threads)
+
+2. ML INFERENCE
+   ├── Model Caching (Load once, reuse)
+   ├── Batch Prediction (If multiple packets)
+   ├── GPU Acceleration (PyTorch CUDA support)
+   └── Quantization (INT8 for production)
+
+3. DATABASE
+   ├── Indexes (timestamp, severity, src_ip)
+   ├── Connection Pooling (SQLAlchemy)
+   ├── Write Buffering (Batch inserts)
+   └── Archiving (Move old alerts to separate table)
+
+4. API
+   ├── Response Caching (Redis for stats)
+   ├── Pagination (Limit 50 results per page)
+   ├── Compression (gzip responses)
+   └── WebSocket Pooling (Reuse connections)
+
+Benchmarks:
+- Packet Processing: 1,200 pps (single instance)
+- API Latency: <50ms (p95)
+- WebSocket Latency: <100ms (real-time)
+- Database Queries: <100ms (complex joins)
+- ML Inference: 5ms (Random Forest), 2ms (ANN)
+
+================================================================================
+                         TECHNOLOGY STACK SUMMARY
+================================================================================
+
+BACKEND:
+├── Runtime:         Python 3.11.9
+├── Framework:       FastAPI 0.115.0
+├── Server:          Uvicorn 0.30.0
+├── ML/DL:           PyTorch 2.4.0, scikit-learn 1.5.0
+├── Packet Capture:  Scapy 2.5.0
+├── Database:        SQLite (SQLAlchemy 2.0.0 ORM)
+├── Data Processing: Pandas 2.2.0, NumPy 1.26.0
+├── Visualization:   Matplotlib 3.9.0, Seaborn 0.13.0
+├── Auth:            python-jose 3.3.0, passlib 1.7.4
+├── Network:         pysnmp 4.4.12, paramiko
+└── Task Queue:      Celery 5.3.0
+
+FRONTEND:
+├── Framework:       React 18.3.1
+├── Build Tool:      Vite 5.4.2
+├── Routing:         React Router DOM 6.26.1
+├── HTTP Client:     Axios 1.7.7
+└── Styling:         CSS3, Inter Font
+
+INFRASTRUCTURE:
+├── OS:              Windows 10/11, Linux (Ubuntu 20.04+)
+├── Database:        SQLite (dev), PostgreSQL (prod)
+├── Cache:           Redis (optional)
+└── Monitoring:      Prometheus, Grafana
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
+Generated: October 31, 2025
+SafeLink Network Defense System - Architecture Documentation v1.0

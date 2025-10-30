@@ -1,0 +1,119 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PIPFILE.lock
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Environment Variables
+.env
+.env.local
+.env.production
+.env.development
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+safelink.db
+
+# Models (large files - use Git LFS or external storage)
+*.h5
+*.pt
+*.pkl
+*.joblib
+Backend/SafeLink_Backend/models/*.h5
+Backend/SafeLink_Backend/models/*.pt
+
+# Logs
+*.log
+logs/
+*.log.*
+Backend/SafeLink_Backend/logs/*.csv
+Backend/SafeLink_Backend/logs/*.json
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+dist/
+dist-ssr/
+*.local
+
+# Build artifacts
+*.tmp
+*.temp
+*.cache
+
+# Frontend build
+Frontend/dist/
+Frontend/.vite/
+Frontend/.cache/
+
+# Deployment
+*.pid
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Data files (sensitive)
+Backend/SafeLink_Backend/data/*.csv
+!Backend/SafeLink_Backend/data/All_Labelled.csv
+
+# Temporary files
+*.bak
+*.backup
+*.old
+
+# Vercel
+.vercel

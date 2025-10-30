@@ -1,0 +1,1290 @@
+# SafeLink Technology Stack - Complete Documentation
+# Every Technology Used: Why, What, How, Where
+
+================================================================================
+                          TECHNOLOGY STACK OVERVIEW
+================================================================================
+
+This document details EVERY technology, library, framework, and tool used in
+the SafeLink Network Defense System, including the rationale (WHY), description
+(WHAT), implementation details (HOW), and usage location (WHERE).
+
+================================================================================
+                          BACKEND TECHNOLOGIES
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. PYTHON 3.11.9 (Runtime Environment)                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Core programming language and runtime environment
+WHY:  
+  - Modern Python with performance improvements (3.11 is 25% faster than 3.10)
+  - Excellent ML/AI library ecosystem (PyTorch, scikit-learn)
+  - Async/await support for concurrent operations
+  - Strong networking and packet manipulation capabilities
+  - Cross-platform compatibility (Windows, Linux, macOS)
+  
+HOW:  
+  - Virtual environment: E:\coreproject\venv
+  - Installation: pyenv (Python version manager)
+  - Command: python --version → Python 3.11.9
+  
+WHERE:
+  - ALL backend code (100% Python)
+  - Scripts: api.py, main.py, evaluate_models.py, train_rf.py, etc.
+  - Location: Backend/SafeLink_Backend/*.py
+
+ALTERNATIVES CONSIDERED:
+  - Python 3.10: Slower, missing some 3.11 optimizations
+  - Python 3.12: Too new, library compatibility issues
+  - Go/Rust: Faster but weaker ML ecosystem
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. FASTAPI 0.115.0 (Web Framework)                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Modern, high-performance web framework for building REST APIs
+WHY:  
+  - Automatic API documentation (Swagger UI, ReDoc)
+  - Built-in data validation (Pydantic schemas)
+  - Async/await support for WebSocket and concurrent requests
+  - Type hints for IDE autocompletion and error detection
+  - 3x faster than Flask, comparable to Node.js/Express
+  - Native WebSocket support for real-time updates
+  
+HOW:  
+  - Installation: pip install fastapi>=0.115.0
+  - Import: from fastapi import FastAPI, WebSocket, HTTPException
+  - App initialization: app = FastAPI(title="SafeLink API")
+  - Decorators: @app.get("/endpoint"), @app.post("/endpoint")
+  
+WHERE:
+  - Main API: Backend/SafeLink_Backend/api.py (26 endpoints)
+  - Endpoints:
+    * Authentication: /auth/login, /auth/register, /auth/me
+    * System: /system/status, /sniffer/start, /sniffer/stop
+    * Alerts: /alerts (GET/POST), /alerts/stats, /alerts/archive
+    * Attackers: /attackers, /attackers/{ip}
+    * Learning: /learning/status, /learning/train
+    * Mitigation: /mitigation/actions, /mitigation/approve
+    * WebSocket: /ws/updates
+  
+KEY FEATURES USED:
+  - Dependency Injection: get_current_user() for authentication
+  - Background Tasks: for async sniffer operations
+  - CORS Middleware: allow frontend cross-origin requests
+  - Pydantic Models: request/response validation
+  - Exception Handlers: HTTPException for error responses
+
+ALTERNATIVES CONSIDERED:
+  - Flask: Slower, no async support, manual validation
+  - Django: Too heavy, designed for full-stack apps
+  - Tornado: Good for WebSocket but older API design
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. UVICORN 0.30.0 (ASGI Server)                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Lightning-fast ASGI server for Python web applications
+WHY:  
+  - ASGI (Asynchronous Server Gateway Interface) support
+  - WebSocket protocol support
+  - Auto-reload during development (--reload flag)
+  - HTTP/2 support (future-ready)
+  - Low latency (<50ms average response time)
+  
+HOW:  
+  - Installation: pip install "uvicorn[standard]>=0.30.0"
+  - Command: uvicorn api:app --reload --host 0.0.0.0 --port 8000
+  - Production: uvicorn api:app --workers 4 --host 0.0.0.0 --port 8000
+  
+WHERE:
+  - Server startup: Backend/SafeLink_Backend/
+  - Development: Single worker with --reload
+  - Production: 4 workers (multi-process)
+  
+CONFIGURATION:
+  - Host: 0.0.0.0 (accept all network interfaces)
+  - Port: 8000 (default API port)
+  - Workers: 4 (production), 1 (development)
+  - Log Level: INFO
+
+ALTERNATIVES CONSIDERED:
+  - Gunicorn: WSGI-only, no WebSocket support
+  - Hypercorn: Good but less popular
+  - Daphne: Django-specific
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 4. PYTORCH 2.4.0 + TORCHVISION + TORCHAUDIO (Deep Learning)                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Deep learning framework for neural network development
+WHY:  
+  - Dynamic computation graphs (easier debugging)
+  - GPU acceleration (CUDA support)
+  - Pythonic API (more intuitive than TensorFlow)
+  - Strong community and research adoption
+  - Excellent for custom architectures (MLP for ARP detection)
+  
+HOW:  
+  - Installation: pip install torch>=2.4.0 torchvision>=0.19.0 torchaudio>=2.4.0
+  - Import: import torch, import torch.nn as nn
+  - Device selection: device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+  
+WHERE:
+  - ANN Model: Backend/SafeLink_Backend/core/ann_classifier.py
+  - Model Definition:
+    ```python
+    class ARPAnomalyNet(nn.Module):
+        def __init__(self, input_size=20):
+            super().__init__()
+            self.fc1 = nn.Linear(input_size, 64)
+            self.fc2 = nn.Linear(64, 32)
+            self.fc3 = nn.Linear(32, 2)
+            self.relu = nn.ReLU()
+            self.dropout = nn.Dropout(0.3)
+            self.softmax = nn.Softmax(dim=1)
+    ```
+  
+USAGE:
+  - Training: Backend/SafeLink_Backend/core/ann_classifier.py (train() method)
+  - Inference: core/ann_classifier.py (predict() method)
+  - Model Save: torch.save(model.state_dict(), "ann_model_v1.pth")
+  - Model Load: model.load_state_dict(torch.load("ann_model_v1.pth"))
+  
+KEY COMPONENTS:
+  - nn.Module: Base class for neural networks
+  - nn.Linear: Fully connected layers
+  - nn.ReLU: Activation function
+  - nn.Dropout: Regularization (prevent overfitting)
+  - nn.CrossEntropyLoss: Loss function for classification
+  - optim.Adam: Optimizer for weight updates
+  
+STATUS: Experimental (7.36% accuracy, needs retraining)
+
+ALTERNATIVES CONSIDERED:
+  - TensorFlow: More complex API, static graphs
+  - Keras: Simpler but less flexible
+  - JAX: Too new, smaller ecosystem
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 5. SCIKIT-LEARN 1.5.0 (Machine Learning)                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Comprehensive machine learning library for classical algorithms
+WHY:  
+  - Random Forest implementation (primary production model)
+  - Feature preprocessing (LabelEncoder, StandardScaler)
+  - Evaluation metrics (accuracy, precision, recall, F1, ROC-AUC)
+  - Train/test splitting with stratification
+  - Simple, consistent API (fit/predict pattern)
+  - Well-documented with excellent examples
+  
+HOW:  
+  - Installation: pip install scikit-learn>=1.5.0
+  - Import: from sklearn.ensemble import RandomForestClassifier
+  
+WHERE:
+  - Random Forest Training: Backend/SafeLink_Backend/train_rf.py
+  - Model Evaluation: Backend/SafeLink_Backend/evaluate_models.py
+  - Feature Preprocessing: core/data_curator.py
+  
+KEY MODULES USED:
+
+1. sklearn.ensemble.RandomForestClassifier
+   - Purpose: Primary detection model
+   - Configuration:
+     * n_estimators=100 (number of trees)
+     * max_depth=30 (tree depth)
+     * class_weight='balanced' (handle imbalanced data)
+   - Location: train_rf.py, evaluate_models.py
+   
+2. sklearn.preprocessing.LabelEncoder
+   - Purpose: Convert categorical features (IP, MAC) to numerical
+   - Example: "192.168.1.1" → 157, "aa:bb:cc:dd:ee:ff" → 42
+   - Location: core/data_curator.py, train_rf.py
+   
+3. sklearn.preprocessing.StandardScaler
+   - Purpose: Normalize numerical features (mean=0, std=1)
+   - Formula: x_scaled = (x - mean) / std_dev
+   - Location: train_rf.py, core/data_curator.py
+   
+4. sklearn.model_selection.train_test_split
+   - Purpose: Split data into training (70%) and testing (30%)
+   - Configuration: stratify=y (maintain class distribution)
+   - Location: train_rf.py, evaluate_models.py
+   
+5. sklearn.metrics (Multiple metrics)
+   - accuracy_score: Overall correctness
+   - precision_score: True positives / (TP + FP)
+   - recall_score: True positives / (TP + FN)
+   - f1_score: Harmonic mean of precision/recall
+   - roc_auc_score: Area under ROC curve
+   - confusion_matrix: TP, TN, FP, FN counts
+   - classification_report: Detailed per-class metrics
+   - Location: evaluate_models.py
+
+PERFORMANCE:
+  - Training Time: 45 seconds (51,543 samples)
+  - Model Size: 15.2 MB (.joblib file)
+  - Accuracy: 96.70%
+
+ALTERNATIVES CONSIDERED:
+  - XGBoost: Faster but harder to tune
+  - LightGBM: Memory efficient but overkill for this dataset
+  - CatBoost: Good but less popular
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 6. SCAPY 2.5.0 (Packet Manipulation & Sniffing)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Powerful Python library for packet crafting and network analysis
+WHY:  
+  - Low-level packet capture at Layer 2 (Data Link)
+  - ARP protocol support (filter="arp")
+  - Asynchronous sniffing (non-blocking)
+  - Packet dissection (extract fields)
+  - Cross-platform (Windows via WinPcap/Npcap, Linux via libpcap)
+  - Can forge custom packets (for testing)
+  
+HOW:  
+  - Installation: pip install scapy>=2.5.0
+  - Windows Requirement: Npcap driver (WinPcap successor)
+  - Import: from scapy.all import sniff, ARP, Ether, conf
+  
+WHERE:
+  - Packet Capture: Backend/SafeLink_Backend/core/packet_sniffer.py
+  - Usage:
+    ```python
+    from scapy.all import AsyncSniffer
+    
+    sniffer = AsyncSniffer(
+        iface="Wi-Fi",              # Network interface
+        filter="arp",                # BPF filter (only ARP)
+        prn=packet_callback,         # Callback function
+        store=False                  # Don't store packets (memory)
+    )
+    sniffer.start()
+    ```
+  
+KEY FEATURES USED:
+  1. AsyncSniffer: Non-blocking packet capture
+  2. BPF Filters: filter="arp" (Berkeley Packet Filter)
+  3. Packet Dissection:
+     - packet[ARP].op (1=request, 2=reply)
+     - packet[ARP].psrc (source IP)
+     - packet[ARP].pdst (destination IP)
+     - packet[ARP].hwsrc (source MAC)
+     - packet[ARP].hwdst (destination MAC)
+  4. conf.ifaces: List available network interfaces
+  
+SECURITY REQUIREMENTS:
+  - Administrator/root privileges (raw socket access)
+  - CAP_NET_RAW capability on Linux
+  - Npcap driver on Windows
+  
+TRAFFIC GENERATION (Testing):
+  - generate_attack_traffic.py: Craft malicious ARP packets
+  - generate_massive_traffic.py: Stress testing
+  
+ALTERNATIVES CONSIDERED:
+  - pyshark: Wireshark wrapper, slower
+  - dpkt: Simpler but less powerful
+  - raw sockets: Too low-level, manual protocol parsing
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 7. PANDAS 2.2.0 (Data Processing)                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Data manipulation and analysis library (DataFrame structure)
+WHY:  
+  - CSV file reading/writing (All_Labelled.csv - 74,344 samples)
+  - DataFrame operations (filtering, grouping, aggregation)
+  - Missing value handling
+  - Feature engineering (create new columns)
+  - Integration with scikit-learn and matplotlib
+  
+HOW:  
+  - Installation: pip install pandas>=2.2.0
+  - Import: import pandas as pd
+  
+WHERE:
+  - Dataset Loading: evaluate_models.py, train_rf.py
+  - Usage:
+    ```python
+    df = pd.read_csv("data/All_Labelled.csv")
+    X = df.drop("label", axis=1)  # Features
+    y = df["label"]                # Target
+    ```
+  - Data Export: core/data_curator.py, core/siem_export.py
+  
+KEY OPERATIONS:
+  - pd.read_csv(): Load dataset
+  - df.drop(): Remove columns
+  - df.fillna(): Handle missing values
+  - df.groupby(): Aggregate by category
+  - df.to_csv(): Export data
+  - df.describe(): Statistical summary
+  
+ALTERNATIVES CONSIDERED:
+  - NumPy only: Too low-level, manual indexing
+  - Polars: Faster but newer, less mature
+  - Dask: Distributed, overkill for 74K rows
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 8. NUMPY 1.26.0 (Numerical Computing)                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Fundamental package for scientific computing (array operations)
+WHY:  
+  - Fast array operations (C-optimized)
+  - Mathematical functions (np.mean, np.std, np.max)
+  - Required dependency for pandas, scikit-learn, PyTorch
+  - Memory-efficient storage
+  - Broadcasting (element-wise operations)
+  
+HOW:  
+  - Installation: pip install numpy>=1.26.0
+  - Import: import numpy as np
+  
+WHERE:
+  - Feature Engineering: core/data_curator.py
+  - Metrics Calculation: evaluate_models.py
+  - Array Operations: Throughout backend code
+  
+COMMON OPERATIONS:
+  - np.array(): Create arrays
+  - np.mean(), np.std(): Statistics
+  - np.argmax(): Find maximum index
+  - np.concatenate(): Join arrays
+  - np.where(): Conditional selection
+  
+ALTERNATIVES: None (industry standard)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 9. MATPLOTLIB 3.9.0 + SEABORN 0.13.0 (Visualization)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Plotting libraries for data visualization
+WHY:  
+  - Publication-quality figures (DPI=300)
+  - Wide variety of plot types (confusion matrix, ROC curve, etc.)
+  - Customizable styling
+  - PNG export for research papers
+  - Seaborn: Statistical plots with better defaults
+  
+HOW:  
+  - Installation: pip install matplotlib>=3.9.0 seaborn>=0.13.0
+  - Import: import matplotlib.pyplot as plt, import seaborn as sns
+  
+WHERE:
+  - Model Evaluation: Backend/SafeLink_Backend/evaluate_models.py
+  - Output: Backend/SafeLink_Backend/models/evaluation_plots/
+  
+VISUALIZATIONS GENERATED (8 plots):
+  1. confusion_matrix.png
+     - Type: Heatmap (seaborn)
+     - Size: 10x8 inches, DPI=300
+     - Shows: TP, TN, FP, FN counts
+     
+  2. roc_curve.png
+     - Type: Line plot
+     - Shows: True Positive Rate vs False Positive Rate
+     - Includes: AUC score (99.38%)
+     
+  3. precision_recall_curve.png
+     - Type: Line plot
+     - Shows: Precision-Recall tradeoff
+     
+  4. feature_importance.png
+     - Type: Bar chart (horizontal)
+     - Shows: Top 15 most important features
+     
+  5. class_distribution.png
+     - Type: Bar chart
+     - Shows: Normal vs Attack sample counts
+     
+  6. prediction_distribution.png
+     - Type: Bar chart
+     - Shows: Predicted class distribution
+     
+  7. learning_curve.png
+     - Type: Line plot
+     - Shows: Training size vs accuracy
+     
+  8. training_history.png (ANN only)
+     - Type: Dual-axis line plot
+     - Shows: Loss and accuracy over epochs
+  
+CONFIGURATION:
+  - DPI: 300 (publication quality)
+  - Figure size: 10x8 inches
+  - Style: seaborn-v0_8-darkgrid
+  - Font: DejaVu Sans (default)
+
+ALTERNATIVES CONSIDERED:
+  - Plotly: Interactive but larger files
+  - Bokeh: Good for web but slower rendering
+  - ggplot: R-style, less Pythonic
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 10. SQLALCHEMY 2.0.0 (ORM - Object Relational Mapping)                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: SQL toolkit and Object-Relational Mapper for Python
+WHY:  
+  - Database abstraction (switch between SQLite, PostgreSQL easily)
+  - SQL injection prevention (parameterized queries)
+  - Relationship management (foreign keys)
+  - Migration support (via Alembic)
+  - Pythonic API (no raw SQL needed)
+  
+HOW:  
+  - Installation: pip install SQLAlchemy>=2.0.0
+  - Import: from sqlalchemy import create_engine, Column, Integer, String
+  - Connection: engine = create_engine("sqlite:///data/safelink.db")
+  
+WHERE:
+  - Database Models: Backend/SafeLink_Backend/core/alert_system.py
+  - Usage:
+    ```python
+    from sqlalchemy.orm import declarative_base, Session
+    
+    Base = declarative_base()
+    
+    class Alert(Base):
+        __tablename__ = "alerts"
+        id = Column(Integer, primary_key=True)
+        timestamp = Column(DateTime, nullable=False)
+        severity = Column(String(20), nullable=False)
+        src_ip = Column(String(45), nullable=False)
+        # ... more columns
+    ```
+  
+KEY FEATURES USED:
+  - declarative_base(): Define models as classes
+  - Session: Database transactions
+  - Query API: session.query(Alert).filter_by(severity="critical")
+  - Relationships: ForeignKey for linked tables
+  
+TABLES CREATED:
+  1. alerts: Store detection alerts
+  2. users: Authentication (JWT)
+  3. whitelist: Protected devices
+  4. training_history: Continuous learning logs
+  
+ALTERNATIVES CONSIDERED:
+  - Raw SQL: SQL injection risk, database-specific
+  - Django ORM: Tied to Django framework
+  - Peewee: Simpler but less powerful
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 11. SQLITE (Database - Development/Production)                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Serverless, file-based SQL database
+WHY:  
+  - Zero configuration (no server setup)
+  - Single file storage (easy backup)
+  - ACID compliant (reliable transactions)
+  - Sufficient for <1M alerts
+  - Built into Python (no separate installation)
+  - Portable (move .db file between systems)
+  
+HOW:  
+  - Connection: sqlite:///data/safelink.db
+  - File: Backend/SafeLink_Backend/data/safelink.db
+  
+WHERE:
+  - All alert storage
+  - User authentication data
+  - Whitelist management
+  - Training history
+  
+LIMITATIONS:
+  - Single writer (concurrent writes blocked)
+  - No network access (local only)
+  - Limited to ~140 TB database size (not a concern)
+  
+PRODUCTION ALTERNATIVE:
+  - PostgreSQL 14+: Multi-user, network access, better concurrency
+  - Migration path: Change connection string only (SQLAlchemy abstraction)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 12. PYTHON-JOSE 3.3.0 (JWT Tokens)                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: JSON Web Token (JWT) implementation for Python
+WHY:  
+  - Stateless authentication (no session storage needed)
+  - Secure token signing (HMAC SHA-256)
+  - Expiration support (60-minute tokens)
+  - Claims validation (user ID, permissions)
+  - Compatible with frontend (Axios headers)
+  
+HOW:  
+  - Installation: pip install "python-jose[cryptography]>=3.3.0"
+  - Import: from jose import jwt, JWTError
+  
+WHERE:
+  - Authentication: Backend/SafeLink_Backend/core/auth.py
+  - Token Creation:
+    ```python
+    from jose import jwt
+    from datetime import datetime, timedelta
+    
+    payload = {
+        "sub": user_id,
+        "exp": datetime.utcnow() + timedelta(minutes=60)
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    ```
+  - Token Verification: api.py (get_current_user dependency)
+  
+CONFIGURATION:
+  - Algorithm: HS256 (HMAC with SHA-256)
+  - Secret Key: 32+ character string (environment variable)
+  - Expiry: 60 minutes (configurable)
+  
+SECURITY:
+  - Never expose SECRET_KEY in code
+  - Use strong random secret (secrets.token_urlsafe(32))
+  - HTTPS required in production (prevent token interception)
+
+ALTERNATIVES CONSIDERED:
+  - PyJWT: Less feature-rich
+  - Authlib: More complex setup
+  - Sessions: Stateful, requires storage
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 13. PASSLIB 1.7.4 (Password Hashing)                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Password hashing library with bcrypt support
+WHY:  
+  - Bcrypt algorithm (industry standard for passwords)
+  - Automatic salt generation (prevents rainbow table attacks)
+  - Configurable rounds (12 rounds = ~250ms hashing time)
+  - Future-proof (can increase rounds as hardware improves)
+  - Slow by design (prevents brute force)
+  
+HOW:  
+  - Installation: pip install "passlib[bcrypt]>=1.7.4"
+  - Import: from passlib.context import CryptContext
+  
+WHERE:
+  - Password Hashing: Backend/SafeLink_Backend/core/auth.py
+  - Usage:
+    ```python
+    from passlib.context import CryptContext
+    
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    
+    # Hash password
+    hashed = pwd_context.hash("user_password")
+    # Verify password
+    is_valid = pwd_context.verify("user_password", hashed)
+    ```
+  
+SECURITY:
+  - Never store plaintext passwords
+  - Salt included in hash (automatic)
+  - Rounds: 12 (balance security vs speed)
+  
+ALTERNATIVES CONSIDERED:
+  - hashlib (SHA-256): Too fast, no salt
+  - Argon2: Good but less widely adopted
+  - PBKDF2: Slower, less secure than bcrypt
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 14. PYSNMP 4.4.12 (SNMP Protocol)                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: SNMP (Simple Network Management Protocol) library
+WHY:  
+  - Network device management (switches, routers)
+  - Port shutdown commands (disable attacker ports)
+  - VLAN reassignment (quarantine devices)
+  - Read device status (monitoring)
+  - Industry standard for network automation
+  
+HOW:  
+  - Installation: pip install pysnmp>=4.4.12
+  - Import: from pysnmp.hlapi import *
+  
+WHERE:
+  - Mitigation Backend: Backend/SafeLink_Backend/core/mitigation.py
+  - Usage:
+    ```python
+    from pysnmp.hlapi import *
+    
+    # Shutdown port 24 on switch
+    errorIndication, errorStatus, errorIndex, varBinds = next(
+        setCmd(SnmpEngine(),
+               CommunityData('private', mpModel=1),
+               UdpTransportTarget(('192.168.1.1', 161)),
+               ContextData(),
+               ObjectType(ObjectIdentity('IF-MIB', 'ifAdminStatus', 24),
+                         Integer(2)))  # 2 = down
+    )
+    ```
+  
+SUPPORTED OPERATIONS:
+  - Port Shutdown: ifAdminStatus = 2 (down)
+  - Port Enable: ifAdminStatus = 1 (up)
+  - VLAN Change: dot1qVlanStaticEgressPorts
+  
+REQUIREMENTS:
+  - SNMP-enabled network devices
+  - Community string (read-write access)
+  - Network connectivity to devices
+  
+STATUS: Implemented but placeholders (logs commands, doesn't execute)
+REASON: Requires physical/virtual network devices
+
+ALTERNATIVES CONSIDERED:
+  - SSH (Paramiko): More flexible but complex
+  - REST APIs: Device-specific
+  - Telnet: Insecure (deprecated)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 15. CELERY 5.3.0 (Task Queue)                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Distributed task queue for asynchronous processing
+WHY:  
+  - Background tasks (model retraining, bulk operations)
+  - Scheduled jobs (periodic learning, cleanup)
+  - Retry logic (handle failures)
+  - Scalable (multiple workers)
+  - Redis backend for task state
+  
+HOW:  
+  - Installation: pip install celery>=5.3.0
+  - Configuration: core/tasks.py
+  
+WHERE:
+  - Background Tasks: Backend/SafeLink_Backend/core/tasks.py
+  - Usage:
+    ```python
+    from celery import Celery
+    
+    app = Celery('safelink', broker='redis://localhost:6379/0')
+    
+    @app.task
+    def retrain_model():
+        # Long-running task
+        pass
+    ```
+  
+USE CASES:
+  - Continuous learning retraining (8 minutes)
+  - Bulk alert archiving
+  - Scheduled cleanup jobs
+  - Email notifications (future)
+  
+STATUS: Configured but optional (requires Redis)
+
+ALTERNATIVES CONSIDERED:
+  - Threading: Limited by GIL
+  - Multiprocessing: No persistence
+  - RQ (Redis Queue): Simpler but less features
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 16. PYTEST 8.2.0 (Testing Framework)                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Testing framework for Python applications
+WHY:  
+  - Simple test discovery (test_*.py pattern)
+  - Fixtures for setup/teardown
+  - Assertion introspection (detailed failure messages)
+  - Parallel testing (pytest-xdist)
+  - Coverage reports (pytest-cov)
+  
+HOW:  
+  - Installation: pip install pytest>=8.2.0 pytest-asyncio>=0.23.0 pytest-mock>=3.12.0
+  - Command: pytest (auto-discovers tests)
+  
+WHERE:
+  - Test Files: Backend/SafeLink_Backend/test_*.py (10 files)
+  - Tests:
+    * test_auth.py: Authentication flows
+    * test_dfa.py: DFA rule validation
+    * test_ann.py: ANN inference
+    * test_websocket.py: WebSocket connections
+    * test_mitigation.py: Mitigation workflows
+    * test_continuous_learning.py: Training pipeline
+  
+COVERAGE: 85%+ code coverage
+
+ALTERNATIVES CONSIDERED:
+  - unittest: More verbose, less features
+  - nose: Deprecated
+  - doctest: Limited use cases
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 17. PYTHON-DOTENV 1.0.1 (Environment Variables)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Load environment variables from .env file
+WHY:  
+  - Keep secrets out of code (API keys, passwords)
+  - Different configs per environment (dev/prod)
+  - Easy deployment (single .env file)
+  - 12-factor app compliance
+  
+HOW:  
+  - Installation: pip install python-dotenv>=1.0.1
+  - Import: from dotenv import load_dotenv
+  
+WHERE:
+  - Configuration: Backend/SafeLink_Backend/config/settings.py
+  - Usage:
+    ```python
+    from dotenv import load_dotenv
+    import os
+    
+    load_dotenv()
+    
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    ```
+  
+.ENV VARIABLES:
+  - SECRET_KEY: JWT signing key
+  - DATABASE_URL: SQLite connection string
+  - ABUSEIPDB_API_KEY: Threat intelligence
+  - NETWORK_INTERFACE: Packet capture interface
+
+ALTERNATIVES CONSIDERED:
+  - Hardcoded: Security risk
+  - ConfigParser: More complex
+  - Environment variables only: Less portable
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 18. TQDM 4.66.0 (Progress Bars)                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Progress bar library for Python loops
+WHY:  
+  - Visual feedback for long operations
+  - ETA calculation (time remaining)
+  - Speed display (iterations per second)
+  - Minimal code (wrap any iterable)
+  
+HOW:  
+  - Installation: pip install tqdm>=4.66.0
+  - Import: from tqdm import tqdm
+  
+WHERE:
+  - Model Training: train_rf.py, core/continuous_learner.py
+  - Usage:
+    ```python
+    from tqdm import tqdm
+    
+    for epoch in tqdm(range(20), desc="Training"):
+        # Training code
+    ```
+  
+OUTPUT EXAMPLE:
+  Training: 100%|██████████| 20/20 [08:15<00:00, 24.75s/it]
+
+ALTERNATIVES CONSIDERED:
+  - progressbar2: Similar features
+  - Custom print: No ETA, manual calculations
+
+================================================================================
+                          FRONTEND TECHNOLOGIES
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 19. REACT 18.3.1 (UI Framework)                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: JavaScript library for building user interfaces
+WHY:  
+  - Component-based architecture (reusable UI elements)
+  - Virtual DOM (fast re-rendering)
+  - Hooks for state management (useState, useEffect)
+  - Large ecosystem (React Router, Axios, etc.)
+  - Industry standard for modern web apps
+  - Concurrent rendering (React 18 feature)
+  
+HOW:  
+  - Installation: npm install react@18.3.1 react-dom@18.3.1
+  - Import: import React, { useState, useEffect } from 'react'
+  
+WHERE:
+  - All Frontend: Frontend/src/**/*.jsx
+  - Components:
+    * App.jsx: Root component, routing
+    * Dashboard.jsx: Main dashboard view
+    * Alerts.jsx: Alert feed
+    * Attackers.jsx: Attacker intelligence
+    * ContinuousLearning.jsx: Training status
+    * ThreatMitigation.jsx: Mitigation actions
+  
+KEY FEATURES USED:
+  - useState: Component state management
+  - useEffect: Side effects (API calls, WebSocket)
+  - JSX: HTML-in-JavaScript syntax
+  - Props: Pass data between components
+  - Event Handlers: onClick, onChange, etc.
+  
+EXAMPLE:
+  ```jsx
+  import { useState, useEffect } from 'react';
+  
+  function Dashboard() {
+    const [alerts, setAlerts] = useState([]);
+    
+    useEffect(() => {
+      // Fetch alerts from API
+      fetch('http://localhost:8000/alerts')
+        .then(res => res.json())
+        .then(data => setAlerts(data));
+    }, []);
+    
+    return <div>{alerts.map(alert => ...)}</div>;
+  }
+  ```
+
+ALTERNATIVES CONSIDERED:
+  - Vue.js: Simpler but smaller ecosystem
+  - Angular: Too heavy, steeper learning curve
+  - Svelte: Newer, less mature
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 20. VITE 5.4.2 (Build Tool)                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Next-generation frontend build tool and dev server
+WHY:  
+  - Lightning-fast HMR (Hot Module Replacement)
+  - Native ES modules (no bundling in dev)
+  - Optimized production builds (Rollup)
+  - Simple configuration (vite.config.js)
+  - 10-100x faster than Webpack
+  
+HOW:  
+  - Installation: npm install vite@5.4.2
+  - Dev Server: npm run dev (starts on port 5173)
+  - Build: npm run build (creates dist/ folder)
+  
+WHERE:
+  - Configuration: Frontend/vite.config.js
+  - Scripts:
+    * npm run dev: Development server
+    * npm run build: Production build
+    * npm run preview: Preview production build
+  
+KEY FEATURES:
+  - Instant server start (<100ms)
+  - HMR updates in <50ms
+  - Automatic JSX transformation
+  - CSS preprocessing support
+  - Tree-shaking (remove unused code)
+  
+ALTERNATIVES CONSIDERED:
+  - Webpack: Slower, complex configuration
+  - Parcel: Simpler but less control
+  - Create React App: Deprecated, slow
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 21. REACT ROUTER DOM 6.26.1 (Routing)                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Client-side routing library for React
+WHY:  
+  - Single Page Application (SPA) navigation
+  - URL management (/dashboard, /alerts, etc.)
+  - Browser history API integration
+  - Nested routes support
+  - Lazy loading (code splitting)
+  
+HOW:  
+  - Installation: npm install react-router-dom@6.26.1
+  - Import: import { BrowserRouter, Route, Routes } from 'react-router-dom'
+  
+WHERE:
+  - Routing: Frontend/src/App.jsx
+  - Routes:
+    * / → Dashboard
+    * /alerts → Alerts page
+    * /attackers → Attackers page
+    * /learning → Continuous Learning
+    * /mitigation → Threat Mitigation
+  
+EXAMPLE:
+  ```jsx
+  import { BrowserRouter, Route, Routes } from 'react-router-dom';
+  
+  <BrowserRouter>
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/alerts" element={<Alerts />} />
+      <Route path="/attackers" element={<Attackers />} />
+    </Routes>
+  </BrowserRouter>
+  ```
+
+ALTERNATIVES CONSIDERED:
+  - React Router v5: Older API
+  - Reach Router: Merged into React Router
+  - Manual routing: Too complex
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 22. AXIOS 1.7.7 (HTTP Client)                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Promise-based HTTP client for browsers and Node.js
+WHY:  
+  - Simple API (axios.get, axios.post)
+  - Automatic JSON parsing
+  - Request/response interceptors (add JWT tokens)
+  - Error handling (try/catch)
+  - CORS support
+  - Browser and Node.js compatible
+  
+HOW:  
+  - Installation: npm install axios@1.7.7
+  - Import: import axios from 'axios'
+  
+WHERE:
+  - API Calls: All Frontend/*.jsx files
+  - Configuration: Frontend/src/lib/api.js
+  - Usage:
+    ```javascript
+    import axios from 'axios';
+    
+    const api = axios.create({
+      baseURL: 'http://localhost:8000',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    // GET request
+    const alerts = await api.get('/alerts');
+    
+    // POST request
+    const response = await api.post('/alerts/archive', {
+      alert_ids: [1, 2, 3]
+    });
+    ```
+  
+KEY FEATURES:
+  - Interceptors: Add auth headers automatically
+  - Error handling: Centralized error responses
+  - Timeout: Prevent hanging requests
+  - CORS: Cross-origin requests to backend
+  
+ALTERNATIVES CONSIDERED:
+  - fetch API: Built-in but manual JSON parsing
+  - XMLHttpRequest: Too low-level
+  - superagent: Similar but less popular
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 23. CSS3 + INTER FONT (Styling)                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Modern CSS with custom properties and Google Fonts
+WHY:  
+  - Full control over styling (no framework bloat)
+  - Custom design (dark theme)
+  - CSS Variables for theming
+  - Inter font: Clean, readable, modern
+  - Responsive design (media queries)
+  
+HOW:  
+  - Stylesheet: Frontend/src/index.css
+  - Font: @import url('https://fonts.googleapis.com/css2?family=Inter:...')
+  
+WHERE:
+  - Global Styles: Frontend/src/index.css
+  - Key Styles:
+    * Dark theme colors
+    * Table scrolling (.table-scroll-x)
+    * Alert badges (severity colors)
+    * Button styles
+    * Card layouts
+  
+FEATURES:
+  - CSS Variables: --primary-color, --bg-dark, etc.
+  - Flexbox: Modern layout
+  - Grid: Card layouts
+  - Custom Scrollbar: Blue, 12px height
+  - Hover Effects: Interactive buttons
+  
+ALTERNATIVES CONSIDERED:
+  - Tailwind CSS: Utility-first, verbose HTML
+  - Bootstrap: Too opinionated
+  - Material-UI: React components, heavier
+  - Styled Components: CSS-in-JS, complexity
+
+================================================================================
+                          DEVELOPMENT TOOLS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 24. NODE.JS 20+ (JavaScript Runtime)                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: JavaScript runtime for frontend development
+WHY:  
+  - npm package manager
+  - Vite build tool requires Node.js
+  - Modern JS features (ES modules)
+  
+WHERE:
+  - Frontend build process
+  - Development server
+  
+VERSION: 20.x LTS (Long Term Support)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 25. NPM (Package Manager)                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Node Package Manager for JavaScript libraries
+WHY:  
+  - Dependency management (package.json)
+  - Lock file for reproducible installs (package-lock.json)
+  - Scripts: npm run dev, npm run build
+  
+WHERE:
+  - Frontend dependencies
+  - File: Frontend/package.json
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 26. GIT (Version Control)                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Distributed version control system
+WHY:  
+  - Track code changes
+  - Collaboration (branches, merges)
+  - History and rollback
+  - GitHub integration
+  
+WHERE:
+  - Repository: .git/
+  - Ignore: .gitignore (exclude venv/, __pycache__)
+
+================================================================================
+                          OPERATING SYSTEM & INFRASTRUCTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 27. WINDOWS 10/11 (Development OS)                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Operating system for development
+WHY:  
+  - Compatible with all tools
+  - PowerShell for scripting
+  - WSL2 for Linux compatibility (optional)
+  - Visual Studio Code integration
+  
+REQUIREMENTS:
+  - Npcap driver (for Scapy)
+  - Administrator privileges (packet capture)
+  
+PRODUCTION ALTERNATIVE:
+  - Ubuntu 20.04+ (Linux server)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 28. PYENV (Python Version Manager)                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Python version management tool
+WHY:  
+  - Install multiple Python versions
+  - Switch between versions easily
+  - Project-specific Python versions
+  
+WHERE:
+  - Python 3.11.9 installation
+  - Location: C:\Users\[user]\.pyenv\pyenv-win\versions\3.11.9
+
+================================================================================
+                          FILE FORMATS & DATA
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 29. CSV (Comma-Separated Values)                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Plain text format for tabular data
+WHY:  
+  - Universal format (Excel, Python, R compatible)
+  - Human-readable
+  - Easy to version control
+  - Pandas native support
+  
+WHERE:
+  - Dataset: Backend/SafeLink_Backend/data/All_Labelled.csv
+  - Size: 74,344 rows, 21 columns
+  - Features: 20 + 1 label column
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 30. JSON (JavaScript Object Notation)                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Lightweight data interchange format
+WHY:  
+  - API request/response format
+  - Configuration files
+  - Metrics storage
+  - JavaScript native support
+  
+WHERE:
+  - API Responses: All FastAPI endpoints
+  - Metrics: models/evaluation_plots/*.json
+  - Alert Details: Stored in database
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 31. JOBLIB (Model Serialization)                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Efficient serialization for Python objects (especially NumPy arrays)
+WHY:  
+  - Faster than pickle for large NumPy arrays
+  - Compression support (reduces file size)
+  - scikit-learn recommended format
+  
+WHERE:
+  - Random Forest Model: models/random_forest_model.joblib (15.2 MB)
+  - Label Encoders: models/label_encoders.joblib
+  - Scaler: models/scaler.joblib
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 32. PTH (PyTorch Model Format)                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: PyTorch model state dictionary format
+WHY:  
+  - Standard PyTorch format
+  - Saves model weights only (not architecture)
+  - Smaller file size
+  
+WHERE:
+  - ANN Model: models/ann_model_v1.pth
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 33. PNG (Portable Network Graphics)                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Lossless image format
+WHY:  
+  - Publication quality (DPI=300)
+  - Lossless compression (no quality loss)
+  - Transparency support
+  - Wide compatibility
+  
+WHERE:
+  - Visualizations: models/evaluation_plots/*.png (8 files)
+
+================================================================================
+                          PROTOCOLS & STANDARDS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 34. ARP (Address Resolution Protocol) - RFC 826                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Network protocol for IP-to-MAC address resolution
+WHY:  
+  - Core detection target (ARP spoofing attacks)
+  - Layer 2 protocol (Data Link)
+  - Critical for LAN communication
+  
+PACKET STRUCTURE:
+  - Hardware Type: Ethernet (1)
+  - Protocol Type: IPv4 (0x0800)
+  - Operation: Request (1) or Reply (2)
+  - Sender MAC/IP, Target MAC/IP
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 35. HTTP/HTTPS (HyperText Transfer Protocol)                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Application protocol for web communication
+WHY:  
+  - REST API communication
+  - Frontend-backend data exchange
+  - Industry standard
+  
+METHODS USED:
+  - GET: Retrieve data
+  - POST: Create resources
+  - PUT: Update resources
+  - DELETE: Remove resources
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 36. WEBSOCKET (Real-Time Communication)                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: Full-duplex communication protocol over TCP
+WHY:  
+  - Real-time alert streaming
+  - Server-push notifications
+  - Persistent connection (no polling)
+  - Low latency (<100ms)
+  
+WHERE:
+  - Backend: /ws/updates endpoint
+  - Frontend: WebSocket client in views
+  - Connection: ws://localhost:8000/ws/updates
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 37. CORS (Cross-Origin Resource Sharing)                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+WHAT: HTTP header-based mechanism for cross-origin requests
+WHY:  
+  - Frontend (localhost:5173) → Backend (localhost:8000)
+  - Different ports = different origins
+  - Browser security requirement
+  
+CONFIGURATION:
+  - Allow Origins: http://localhost:5173
+  - Allow Methods: GET, POST, PUT, DELETE
+  - Allow Headers: Authorization, Content-Type
+
+================================================================================
+                          SUMMARY STATISTICS
+================================================================================
+
+TOTAL TECHNOLOGIES: 37
+CATEGORIES:
+  - Backend Libraries: 18
+  - Frontend Libraries: 5
+  - Development Tools: 4
+  - Operating System: 2
+  - File Formats: 4
+  - Protocols: 4
+
+LANGUAGES:
+  - Python: 100% of backend code
+  - JavaScript/JSX: 100% of frontend code
+  - SQL: Database queries (via ORM)
+  - Shell: PowerShell scripts
+
+TOTAL DEPENDENCIES:
+  - Python (requirements.txt): 40 packages
+  - JavaScript (package.json): 5 packages
+
+TOTAL CODEBASE SIZE:
+  - Backend: ~15,000 lines of Python
+  - Frontend: ~3,000 lines of JavaScript/JSX
+  - Models: 15.2 MB (RF) + 15 KB (ANN)
+  - Dataset: 74,344 samples (~15 MB CSV)
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
+Generated: October 31, 2025
+SafeLink Technology Stack - Complete Reference v1.0

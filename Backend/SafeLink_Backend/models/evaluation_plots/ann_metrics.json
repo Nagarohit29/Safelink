@@ -1,0 +1,38 @@
+{
+  "model": "ANN",
+  "metrics": {
+    "accuracy": 0.07357589615979555,
+    "precision": 0.07032967032967033,
+    "recall": 0.0606826801517067,
+    "f1_score": 0.06515100101798439
+  },
+  "classification_report": {
+    "arp_spoofing": {
+      "precision": 0.07633018398806564,
+      "recall": 0.08823106768213825,
+      "f1-score": 0.08185029660734519,
+      "support": 6959.0
+    },
+    "normal": {
+      "precision": 0.07032967032967033,
+      "recall": 0.0606826801517067,
+      "f1-score": 0.06515100101798439,
+      "support": 7910.0
+    },
+    "accuracy": 0.07357589615979555,
+    "macro avg": {
+      "precision": 0.07332992715886799,
+      "recall": 0.07445687391692248,
+      "f1-score": 0.0735006488126648,
+      "support": 14869.0
+    },
+    "weighted avg": {
+      "precision": 0.07313803501786542,
+      "recall": 0.07357589615979555,
+      "f1-score": 0.07296661726698311,
+      "support": 14869.0
+    }
+  },
+  "test_samples": 14869,
+  "input_features": 71
+}

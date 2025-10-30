@@ -1,0 +1,400 @@
+# SafeLink v2.0 - TODO List
+
+## ✅ COMPLETED - Phase 1 & 2 (Backend Foundation + Real-Time)
+
+### Backend
+- [x] WebSocket connection manager (`core/websocket_manager.py`)
+- [x] JWT authentication system (`core/auth.py`)
+- [x] Role-based access control (Admin, Operator, Viewer)
+- [x] Automated mitigation framework (`core/mitigation.py`)
+- [x] Threat intelligence integration (`core/threat_intel.py`)
+- [x] SIEM export module (`core/siem_export.py`)
+- [x] Celery background tasks (`core/tasks.py`)
+- [x] Enhanced API endpoints with auth
+- [x] Configuration management (settings.py, .env.example)
+- [x] Updated requirements.txt
+
+### Frontend
+- [x] WebSocket client library (`src/lib/websocket.js`)
+- [x] Authentication service (`src/lib/auth.js`)
+- [x] API client with auth interceptors
+
+### DevOps
+- [x] Docker configuration (Backend + Frontend)
+- [x] Docker Compose orchestration
+- [x] CI/CD pipeline (GitHub Actions)
+- [x] Management scripts (deploy.ps1)
+- [x] Setup script (setup.py)
+
+### Documentation
+- [x] Comprehensive upgrade guide (UPGRADE_README.md)
+- [x] Implementation summary (IMPLEMENTATION_SUMMARY.md)
+- [x] Developer quick reference (DEV_QUICK_REFERENCE.md)
+- [x] Alert management guide (ALERT_MANAGEMENT_GUIDE.md)
+- [x] Continuous learning guide (CONTINUOUS_LEARNING_README.md)
+
+### Production Features (Phase 2.5)
+- [x] Alert lifecycle management system
+  - [x] Alert archiving (compliance-friendly)
+  - [x] Auto-rotation (30-day threshold)
+  - [x] Active alert limiting (10K max)
+  - [x] Archive cleanup (365-day retention)
+  - [x] Export with auto-clear option
+  - [x] Alert statistics dashboard
+- [x] Continuous learning system
+  - [x] Background learning thread (parallel operation)
+  - [x] Auto-labeling from DFA + ANN confidence
+  - [x] Real feature extraction (IP, MAC, timestamp)
+  - [x] Incremental model updates (every hour)
+  - [x] Model versioning and rollback
+  - [x] Performance tracking
+  - [x] Zero-downtime training
+- [x] ANN model optimization for online learning
+  - [x] Incremental update method (3 epochs, LR=0.0001)
+  - [x] Checkpoint save/restore
+  - [x] Atomic model reload
+  - [x] Training preparation method
+- [x] Enhanced API endpoints
+  - [x] Alert management endpoints (6 endpoints)
+  - [x] Learning control endpoints (5 endpoints)
+  - [x] Statistics and monitoring
+- [x] Frontend alert management UI
+  - [x] Statistics dashboard (active/archived/total)
+  - [x] Archive-after-download option
+  - [x] Bulk operations (archive all, rotate old)
+  - [x] Archived alerts viewer
+
+---
+
+## 🔄 IN PROGRESS - Phase 3 (Testing & Validation)
+
+### Continuous Learning Testing
+- [ ] Test incremental model updates
+- [ ] Verify parallel detection + learning
+- [ ] Monitor first training cycle
+- [ ] Test with attack traffic
+- [ ] Validate feature extraction accuracy
+- [ ] Test model rollback functionality
+- [ ] Monitor accuracy over time
+
+### Alert Management Testing
+- [ ] Test archive functionality
+- [ ] Test auto-rotation (30 days)
+- [ ] Test alert limiting (10K)
+- [ ] Test cleanup (365 days)
+- [ ] Verify statistics accuracy
+- [ ] Test concurrent operations
+
+---
+
+## 📋 PLANNED - Phase 2 Completion (Frontend UI)
+
+### Frontend UI Components
+- [ ] Login page component
+- [ ] Register page component
+- [ ] Protected route wrapper
+- [ ] User profile page
+- [ ] Update Dashboard to use WebSocket
+- [x] Update Alerts view to use WebSocket (with management features)
+- [ ] Update Sniffer view to use WebSocket
+- [ ] Add real-time connection status indicator
+
+### Testing
+- [ ] WebSocket integration tests
+- [ ] Auth flow tests (login, logout, token refresh)
+- [ ] Mitigation workflow tests
+- [ ] SIEM export tests
+- [ ] Frontend component tests
+
+---
+
+## 📋 PLANNED - Phase 4 (Enhanced Detection)
+
+### Advanced ML Features
+- [x] Continuous learning implementation (reinforcement-style)
+  - [x] Auto-labeling from DFA + confidence thresholds
+  - [x] Real feature extraction from alerts
+  - [x] Incremental training every hour
+  - [x] Model versioning and rollback
+- [x] Implement additional packet-level features
+  - [x] ARP opcode analysis
+  - [x] Timing features (inter-arrival times)
+  - [x] Gratuitous ARP detection
+  - [x] MAC vendor consistency checks
+- [ ] Random Forest classifier implementation
+  - [ ] Training pipeline
+  - [ ] Evaluation harness
+  - [ ] Performance comparison with ANN
+- [ ] Ensemble model support
+- [ ] A/B testing framework for models
+
+### Data Management
+- [x] Training data from production alerts
+- [ ] Automated data curation pipeline
+- [ ] Feature versioning system
+- [ ] Training data quality checks
+- [ ] Dataset balancing tools
+
+---
+
+## 📋 PLANNED - Phase 5 (Scalability & Integration)
+
+### Multi-Interface Support
+- [x] Multi-interface packet capture architecture
+- [x] Interface manager service
+- [x] Per-interface statistics
+- [x] Load balancing across interfaces
+
+### Performance Optimization
+- [x] Packet capture buffering optimization
+- [x] Batch processing for ML inference
+- [ ] Database query optimization
+- [ ] Redis caching layer for frequent queries
+- [ ] WebSocket message compression
+
+### Mitigation Backend Implementation
+- [ ] Complete SNMP implementation
+  - [ ] Cisco switch commands
+  - [ ] HP/Aruba switch support
+  - [ ] Port shutdown/enable
+  - [ ] VLAN manipulation
+- [ ] Complete SSH backend
+  - [ ] Paramiko integration
+  - [ ] Device-specific command sets
+  - [ ] Connection pooling
+- [ ] Firewall API implementations
+  - [ ] Palo Alto API
+  - [ ] FortiGate API
+  - [ ] Generic REST API adapter
+
+### Threat Intelligence Expansion
+- [ ] Additional threat feed integrations
+  - [ ] VirusTotal API
+  - [ ] AlienVault OTX
+  - [ ] MISP integration
+- [ ] Local threat intelligence database
+- [ ] Threat correlation engine
+
+---
+
+## 📋 PLANNED - Phase 5 (UI & UX)
+
+### Frontend Enhancements
+- [ ] Mitigation dashboard
+  - [ ] Pending approvals list
+  - [ ] Action history timeline
+  - [ ] Whitelist management
+- [ ] Advanced alert filtering
+  - [ ] Date range picker
+  - [ ] Multi-field search
+  - [ ] Saved filters
+- [ ] Data visualization improvements
+  - [ ] Time-series charts (Recharts/Chart.js)
+  - [ ] Alert heatmap
+  - [ ] Network topology view
+  - [ ] Attacker relationship graph
+- [ ] User management interface
+  - [ ] User CRUD operations
+  - [ ] Role assignment
+  - [ ] Activity logs
+- [ ] Configuration interface
+  - [ ] DFA threshold adjustment
+  - [ ] Model selection
+  - [ ] SIEM configuration
+  - [ ] Alert retention settings
+- [ ] Mobile responsive design
+  - [ ] Responsive grid layout
+  - [ ] Mobile navigation
+  - [ ] Touch-optimized controls
+
+---
+
+## 📋 PLANNED - Phase 6 (Production Ready)
+
+### Observability
+- [ ] Prometheus metrics instrumentation
+  - [ ] API request metrics
+  - [ ] Alert rate metrics
+  - [ ] Mitigation success/failure rates
+  - [ ] Model inference latency
+  - [ ] WebSocket connection metrics
+- [ ] Grafana dashboards
+  - [ ] System overview
+  - [ ] Alert trends
+  - [ ] Performance metrics
+- [ ] Structured logging
+  - [ ] JSON log format
+  - [ ] Correlation IDs
+  - [ ] Log aggregation (ELK/Loki)
+- [ ] Distributed tracing (OpenTelemetry)
+- [ ] Health check endpoints
+
+### Security Hardening
+- [ ] Rate limiting (per user/IP)
+- [ ] Request size limits
+- [ ] SQL injection prevention audit
+- [ ] XSS prevention audit
+- [ ] CSRF protection
+- [ ] API key management system
+- [ ] Secret rotation mechanism
+- [ ] Security headers (CSP, HSTS, etc.)
+- [ ] Audit logging for sensitive operations
+
+### Deployment
+- [ ] Kubernetes manifests
+  - [ ] Deployment configs
+  - [ ] Service configs
+  - [ ] ConfigMaps/Secrets
+  - [ ] Ingress rules
+  - [ ] HPA (Horizontal Pod Autoscaling)
+- [ ] Helm charts
+- [ ] Terraform/IaC for infrastructure
+- [ ] Production environment configuration
+- [ ] Backup automation
+- [ ] Disaster recovery plan
+
+### Documentation
+- [ ] API versioning strategy
+- [ ] Change log (CHANGELOG.md)
+- [ ] Contributing guidelines
+- [ ] Security policy
+- [ ] Runbooks for common issues
+- [ ] Performance tuning guide
+- [ ] Deployment guide (various platforms)
+
+---
+
+## 🐛 KNOWN ISSUES & IMPROVEMENTS
+
+### High Priority
+- [ ] Fix asyncio event loop in alert_system.py (WebSocket broadcast)
+  - Current: Creates new loop, may conflict with running loop
+  - Solution: Use asyncio.create_task() or background queue
+- [ ] Implement actual mitigation backend commands
+  - Current: Placeholder logging only
+  - Solution: Device-specific command implementation
+- [ ] Add token refresh endpoint
+  - Current: Only access token, no refresh flow
+  - Solution: POST /auth/refresh endpoint
+
+### Medium Priority
+- [ ] Improve error handling in WebSocket manager
+- [ ] Add retry logic for threat intel API calls
+- [ ] Implement SIEM export batching optimization
+- [ ] Add database connection pooling configuration
+- [ ] Improve Celery task error handling and retries
+
+### Low Priority
+- [ ] Add API endpoint versioning (/v1/, /v2/)
+- [ ] Implement GraphQL API option
+- [ ] Add export to additional formats (PDF reports)
+- [ ] Implement notification system (email, Slack, etc.)
+- [ ] Add dark mode toggle for frontend
+
+---
+
+## 🧪 TESTING REQUIREMENTS
+
+### Unit Tests Needed
+- [ ] `test_websocket_manager.py` - Connection management
+- [ ] `test_auth_service.py` - Auth operations
+- [ ] `test_mitigation_service.py` - Mitigation workflows
+- [ ] `test_threat_intel.py` - Enrichment logic
+- [ ] `test_siem_export.py` - Export formatters
+- [ ] `test_celery_tasks.py` - Background tasks
+
+### Integration Tests Needed
+- [ ] `test_api_auth_flow.py` - Login/logout/refresh
+- [ ] `test_websocket_communication.py` - Real-time updates
+- [ ] `test_mitigation_workflow.py` - End-to-end mitigation
+- [ ] `test_siem_integration.py` - Alert export
+- [ ] `test_threat_intel_integration.py` - External API calls
+
+### E2E Tests Needed
+- [ ] User registration and login flow
+- [ ] Alert viewing and filtering
+- [ ] Mitigation request and approval
+- [ ] Real-time alert updates via WebSocket
+- [ ] Configuration changes
+
+---
+
+## 📊 METRICS & MONITORING
+
+### Metrics to Implement
+- [ ] API request rate and latency
+- [ ] WebSocket active connections
+- [ ] Alert generation rate
+- [ ] Mitigation action success/failure rate
+- [ ] Model inference time
+- [ ] Database query performance
+- [ ] Celery queue length
+- [ ] Memory and CPU usage
+
+### Alerts to Configure
+- [ ] High error rate on API endpoints
+- [ ] WebSocket connection drops
+- [ ] Database connection failures
+- [ ] Celery worker down
+- [ ] High alert rate (potential attack)
+- [ ] Mitigation failures
+- [ ] Disk space low
+- [ ] Memory usage high
+
+---
+
+## 🚀 FUTURE ENHANCEMENTS
+
+### Advanced Features
+- [ ] Machine learning model auto-tuning
+- [ ] Anomaly detection using LSTM/autoencoders
+- [ ] Network behavior baselining
+- [ ] Automated incident response playbooks
+- [ ] Integration with ticketing systems (Jira, ServiceNow)
+- [ ] Multi-tenancy support
+- [ ] API rate limiting per user
+- [ ] Custom alert rules engine
+- [ ] Threat hunting workspace
+- [ ] Forensic analysis tools
+
+### Integrations
+- [ ] Slack/Teams notifications
+- [ ] Email alerts
+- [ ] PagerDuty integration
+- [ ] Webhook support
+- [ ] Export to cloud storage (S3, Azure Blob)
+- [ ] Integration with EDR platforms
+- [ ] SOAR platform connectors
+
+---
+
+## 📝 NOTES
+
+### Development Priorities
+1. Test continuous learning and alert management (Phase 3)
+2. Complete Phase 2 (Frontend UI + Testing)
+3. Implement actual mitigation backends (Phase 5)
+4. Production hardening (Phase 6)
+5. Enhanced ML features (Phase 4)
+6. Advanced UI/UX (Phase 5)
+
+### Dependencies to Add Later
+- `prometheus-client` - Metrics
+- `paramiko` - SSH support
+- `ncclient` - NETCONF support
+- `opentelemetry-api` - Tracing
+- For frontend: recharts, d3, date-fns
+
+### Research Items
+- [x] Research best practices for ML model versioning (implemented)
+- [x] Continuous learning strategies (implemented with auto-labeling)
+- [ ] Evaluate Random Forest vs ANN performance on ARP dataset
+- [ ] Research packet-level features most effective for ARP spoofing
+- [ ] Compare SNMP vs SSH performance for mitigation
+- [ ] Evaluate WebSocket scalability (max connections)
+
+---
+
+**Last Updated**: October 30, 2025  
+**Current Version**: 2.1.0-beta  
+**Next Milestone**: Phase 3 Testing (Continuous Learning + Alert Management)

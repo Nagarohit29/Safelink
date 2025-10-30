@@ -1,0 +1,584 @@
+# SafeLink Network Defense System - Complete Setup & Run Guide
+
+## Prerequisites
+- Python 3.11+
+- Node.js 16+
+- PostgreSQL 12+
+- Nmap (for testing)
+
+---
+
+## Step 1: Start PostgreSQL Database
+
+### Check PostgreSQL Service Status
+```powershell
+Get-Service | Where-Object {$_.Name -like "*postgres*"}
+
+# Look for service name like: postgresql-x64-18, postgresql-x64-16, etc.
+# Note the exact service name for the next step
+```
+
+### Start PostgreSQL (if not running)
+```powershell
+# For PostgreSQL 18 (adjust version number based on your installation)
+Start-Service postgresql-x64-18
+
+# Or for older versions
+Start-Service postgresql-x64-16
+
+# Alternative method using net start
+net start postgresql-x64-18
+
+# If you get "service not found" error, list all PostgreSQL services:
+Get-Service | Select-String -Pattern "sql"
+```
+
+### Troubleshoot Connection Timeout Issues
+
+**If you get "connection timeout expired" error:**
+
+```powershell
+# 1. Check if PostgreSQL service is actually running
+Get-Service postgresql-x64-18
+
+# 2. If status is "Stopped", start it:
+Start-Service postgresql-x64-18
+
+# 3. Verify it's listening on port 5432
+netstat -an | findstr :5432
+
+# 4. Check PostgreSQL logs for errors (adjust version and data path)
+Get-Content "C:\Program Files\PostgreSQL\18\data\log\*.log" -Tail 50
+
+# 5. If service won't start, try running PostgreSQL manually:
+& "C:\Program Files\PostgreSQL\18\bin\postgres.exe" -D "C:\Program Files\PostgreSQL\18\data"
+
+# 6. Check Windows Event Viewer for PostgreSQL errors:
+Get-EventLog -LogName Application -Source postgresql* -Newest 10
+```
+
+**Common fixes:**
+
+```powershell
+# Fix 1: Restart PostgreSQL service (REQUIRES ADMINISTRATOR)
+# Right-click PowerShell -> Run as Administrator
+Restart-Service postgresql-x64-18 -Force
+Start-Sleep -Seconds 5
+Get-Service postgresql-x64-18
+
+# Fix 2: Manually restart PostgreSQL server
+cd "C:\Program Files\PostgreSQL\18\bin"
+.\pg_ctl.exe -D "C:\Program Files\PostgreSQL\18\data" restart
+
+# Fix 3: Check if postgres.exe process is actually running
+Get-Process postgres -ErrorAction SilentlyContinue
+
+# Fix 4: If no postgres process, start it manually:
+& "C:\Program Files\PostgreSQL\18\bin\postgres.exe" -D "C:\Program Files\PostgreSQL\18\data"
+
+# Fix 5: Set service to start automatically
+Set-Service -Name postgresql-x64-18 -StartupType Automatic
+
+# Fix 6: Try connecting without -h parameter (uses local socket)
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d postgres
+```
+
+**IMPORTANT: If PostgreSQL won't start at all:**
+
+The issue is usually that the postgres.exe process is not running even though the Windows service says "Running". 
+
+**Solution:**
+1. Open PowerShell as **Administrator**
+2. Run: `Restart-Service postgresql-x64-18 -Force`
+3. Wait 5-10 seconds for the server to fully start
+4. Check process: `Get-Process postgres`
+5. If no process, the data directory may be corrupted - check logs at:
+   `C:\Program Files\PostgreSQL\18\data\log\*.log`
+
+**CRITICAL FIX: Enable TCP/IP Connections (Required for pgAdmin)**
+
+If you get "connection timeout" errors in pgAdmin even with correct password:
+
+```powershell
+# 1. Edit PostgreSQL configuration
+notepad "C:\Program Files\PostgreSQL\18\data\postgresql.conf"
+
+# In the file, find line ~60 with listen_addresses and change to:
+# listen_addresses = '*'
+# (remove the # and change 'localhost' to '*')
+
+# 2. Save and close the file
+
+# 3. Restart PostgreSQL (as Administrator)
+Restart-Service postgresql-x64-18
+
+# 4. Verify TCP listening
+netstat -an | findstr :5432
+
+# 5. Test connection
+$env:PGPASSWORD="YourPassword"; & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -h localhost -d postgres -c "SELECT 1;"
+```
+
+After this, pgAdmin should connect successfully!
+
+### Start pgAdmin (GUI Tool - Optional)
+```powershell
+# Method 1: Start pgAdmin from command line
+& "C:\Program Files\pgAdmin 4\v8\runtime\pgAdmin4.exe"
+
+# Method 2: Or find your pgAdmin installation path
+& "C:\Program Files (x86)\pgAdmin 4\v8\runtime\pgAdmin4.exe"
+
+# Method 3: Using python (if pgAdmin is installed via pip)
+python -m pgadmin4
+```
+
+**pgAdmin will open in your default browser**
+- Default URL: `http://127.0.0.1:5050` or similar
+- Login with your pgAdmin master password
+- Connect to PostgreSQL server (localhost:5432)
+
+### Verify Database Connection
+```powershell
+# Test connection (should show safelink_db database)
+psql -U postgres -l
+```
+
+### Create Database (if not exists)
+```powershell
+# Connect to PostgreSQL
+psql -U postgres
+
+# Create database
+CREATE DATABASE safelink_db;
+
+# Verify
+\l
+
+# Exit
+\q
+```
+
+---
+
+## Step 2: Start Backend Server
+
+### Terminal 1: Backend API
+```powershell
+# Navigate to project root
+cd E:\coreproject
+
+# Activate virtual environment
+& E:/coreproject/venv/Scripts/Activate.ps1
+
+# Navigate to backend directory
+cd Backend\SafeLink_Backend
+
+# Start FastAPI server
+E:/coreproject/venv/Scripts/python.exe -m uvicorn api:app --reload --port 8000
+```
+
+**Backend should now be running at:** `http://127.0.0.1:8000`
+
+**You should see:**
+```
+INFO: Uvicorn running on http://127.0.0.1:8000
+INFO: Started reloader process
+INFO: Application startup complete
+```
+
+---
+
+## Step 3: Start Frontend Development Server
+
+### Terminal 2: Frontend (New Terminal)
+```powershell
+# Navigate to frontend directory
+cd E:\coreproject\Frontend
+
+# Install dependencies (first time only)
+npm install
+
+# Start development server
+npm run dev
+```
+
+**Frontend should now be running at:** `http://localhost:5173`
+
+**You should see:**
+```
+VITE v5.x.x ready in xxx ms
+➜ Local: http://localhost:5173/
+```
+
+---
+
+## Step 4: Start Packet Sniffer
+
+### Option A: Via API (Recommended)
+```powershell
+# In a new terminal or PowerShell
+cd E:\coreproject\Backend\SafeLink_Backend
+
+# Activate venv
+& E:/coreproject/venv/Scripts/Activate.ps1
+
+# Run the start sniffer script
+python start_sniffer.py
+```
+
+### Option B: Via Frontend UI
+1. Open browser: `http://localhost:5173`
+2. Login with your credentials
+3. Navigate to **Sniffer** tab
+4. Click **Start Sniffer** button
+5. Select interface (or leave as default/None)
+
+### Check Available Network Interfaces
+```powershell
+# List Windows network adapters
+Get-NetAdapter | Select Name, Status
+
+# Or use Python to list Scapy interfaces
+cd E:\coreproject\Backend\SafeLink_Backend
+python list_interfaces.py
+```
+
+---
+
+## Step 5: Verify System is Running
+
+### Check All Services
+```powershell
+# Backend API - should return status
+curl http://localhost:8000/health
+
+# Sniffer status
+curl http://localhost:8000/sniffer/status
+
+# Frontend - open in browser
+start http://localhost:5173
+```
+
+---
+
+## Step 6: Generate Network Traffic for Demonstration
+
+### IMPORTANT: Complete Steps 1-5 First!
+Before generating traffic, ensure:
+- ✅ PostgreSQL is running
+- ✅ Backend API is running on port 8000
+- ✅ Frontend is running on port 5173
+- ✅ Packet Sniffer is active (status shows `running: true`)
+- ✅ Browser is open at `http://localhost:5173/alerts`
+
+---
+
+### Method 1: Using Python Traffic Generator (RECOMMENDED FOR DEMO)
+
+**Option A: Real Packet Sender (250 packets - Best for Demo)**
+```powershell
+# Open NEW Terminal (Terminal 5)
+cd E:\coreproject\Backend\SafeLink_Backend
+
+# Activate venv
+& E:/coreproject/venv/Scripts/Activate.ps1
+
+# Send real attack packets
+python send_real_traffic.py
+
+# Type YES when prompted
+```
+
+**What happens:**
+- ✅ Sends 250 real packets to localhost
+- ✅ Triggers ANN classifier detection
+- ✅ Creates alerts in real-time
+- ✅ Shows live updates in browser
+- ⏱️ Takes ~15 seconds to complete
+
+**Expected Output:**
+```
+[1/4] Sending Port Scan (100 packets)...
+[2/4] Sending XMAS Scan (50 packets)...
+[3/4] Sending NULL Scan (50 packets)...
+[4/4] Sending Suspicious Traffic (50 packets)...
+✅ TRANSMISSION COMPLETE!
+Total Packets: 250
+```
+
+---
+
+**Option B: Massive Traffic Simulation (350+ packets - Visual Demo)**
+```powershell
+# Same terminal as above
+python generate_massive_traffic.py
+
+# Press ENTER when prompted
+```
+
+**What happens:**
+- ✅ Simulates 6 different attack types
+- ✅ Shows detailed progress for each attack
+- ✅ Explains what each attack does
+- ✅ Doesn't actually send packets (safe demo)
+- ⏱️ Takes ~30 seconds to complete
+
+**Attack Scenarios Demonstrated:**
+1. ARP Spoofing (50 packets) - DFA Detection
+2. Port Scanning (Multiple ranges) - ANN Detection
+3. Stealth Scans (XMAS, NULL, FIN) - ANN Detection
+4. IP Fragmentation (30 packets) - ANN Detection
+5. Traffic Flood (100 packets) - Volume Detection
+6. Malicious Ports (50 packets) - ANN Detection
+
+---
+
+### Method 2: Using Nmap (Windows)
+
+**Run these commands in Terminal 5 (or new terminal):**
+
+```powershell
+# Basic SYN scan - Good for initial test
+& "C:\Program Files (x86)\Nmap\nmap.exe" -sS localhost
+# Expected: ~6 open ports detected, generates ~1000 packets
+
+# Xmas scan (unusual TCP flags) - Triggers ANN
+& "C:\Program Files (x86)\Nmap\nmap.exe" -sX localhost
+# Expected: Unusual flag combinations detected by ANN
+
+# NULL scan - Triggers ANN
+& "C:\Program Files (x86)\Nmap\nmap.exe" -sN localhost
+# Expected: No-flags packets detected as anomalous
+
+# Port range scan - Heavy traffic
+& "C:\Program Files (x86)\Nmap\nmap.exe" -p 1-1000 localhost
+# Expected: Large volume of SYN packets, ~1000 ports scanned
+
+# Fast scan (top 100 ports) - Quick test
+& "C:\Program Files (x86)\Nmap\nmap.exe" -F localhost
+# Expected: Quick scan pattern detected
+
+# Aggressive scan - Multiple techniques
+& "C:\Program Files (x86)\Nmap\nmap.exe" -A localhost
+# Expected: OS detection + version scanning
+```
+
+**⏱️ Each scan takes 2-5 seconds**
+**💡 TIP:** Run multiple scans in sequence for more alerts
+
+---
+
+### Method 3: Using Bettercap (Kali Linux/WSL)
+```bash
+# In Kali Linux terminal
+sudo bettercap
+
+# Discover network devices
+net.probe on
+
+# Show discovered hosts
+net.show
+
+# Start ARP spoofing (replace with target IP)
+set arp.spoof.targets 192.168.1.1
+arp.spoof on
+
+# Check spoofing stats
+arp.spoof.stats
+```
+
+---
+
+## Step 7: Monitor Detection Results
+
+### View Alerts in Browser
+1. Open: `http://localhost:5173/alerts`
+2. Watch for real-time alerts via WebSocket
+3. Check **Dashboard** for statistics
+
+### Check Alerts via Terminal
+```powershell
+cd E:\coreproject\Backend\SafeLink_Backend
+python check_ann_alerts.py
+
+# Or check all alerts
+python check_alerts.py
+```
+
+### Download Alerts as CSV
+- Click **Download CSV** button in Alerts page
+- File will be saved as `alerts_YYYYMMDD_HHMMSS.csv`
+
+---
+
+## Complete Running System Checklist
+
+✅ **PostgreSQL** - Service running on port 5432  
+✅ **Backend API** - Running on http://127.0.0.1:8000  
+✅ **Frontend** - Running on http://localhost:5173  
+✅ **Packet Sniffer** - Status shows `running: true`  
+✅ **WebSocket** - Dashboard shows 🟢 Live  
+✅ **Database** - safelink_db created and accessible  
+
+---
+
+## Troubleshooting
+
+### Database Connection Issues
+```powershell
+# Check if PostgreSQL is running
+Get-Service | Where-Object {$_.Name -like "*postgres*"}
+
+# Start if stopped
+Start-Service postgresql-x64-16
+
+# Test connection
+psql -U postgres -d safelink_db
+```
+
+### Backend Import Errors
+```powershell
+# Ensure you're in the correct directory
+cd E:\coreproject\Backend\SafeLink_Backend
+
+# Then run uvicorn
+python -m uvicorn api:app --reload --port 8000
+```
+
+### Sniffer Not Starting
+```powershell
+# List available interfaces
+python list_interfaces.py
+
+# Check sniffer status
+curl http://localhost:8000/sniffer/status
+
+# Start with default interface
+python start_sniffer.py
+```
+
+### Frontend Not Loading
+```powershell
+# Clear npm cache
+npm cache clean --force
+
+# Reinstall dependencies
+cd E:\coreproject\Frontend
+npm install
+
+# Restart dev server
+npm run dev
+```
+
+---
+
+## Production Build
+
+### Build Frontend
+```powershell
+cd E:\coreproject\Frontend
+npm run build
+```
+
+Output will be in `dist/` folder.
+
+### Run Backend in Production
+```powershell
+cd E:\coreproject\Backend\SafeLink_Backend
+python -m uvicorn api:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+---
+
+## Quick Start Commands (All in One)
+
+### Terminal 1 - Database & Backend
+```powershell
+Start-Service postgresql-x64-16
+cd E:\coreproject
+& E:/coreproject/venv/Scripts/Activate.ps1
+cd Backend\SafeLink_Backend
+python -m uvicorn api:app --reload --port 8000
+```
+
+### Terminal 2 - Frontend
+```powershell
+cd E:\coreproject\Frontend
+npm run dev
+```
+
+### Terminal 3 - Start Sniffer
+```powershell
+cd E:\coreproject\Backend\SafeLink_Backend
+& E:/coreproject/venv/Scripts/Activate.ps1
+python start_sniffer.py
+```
+
+### Terminal 4 - Test Attacks (Optional)
+```powershell
+# Using Nmap
+& "C:\Program Files (x86)\Nmap\nmap.exe" -sS localhost
+
+# Or using Python
+cd E:\coreproject\Backend\SafeLink_Backend
+python generate_attack_traffic.py
+```
+
+---
+
+## Access the Application
+
+**Frontend Dashboard:** http://localhost:5173  
+**Backend API Docs:** http://localhost:8000/docs  
+**WebSocket:** ws://localhost:8000/ws/updates  
+
+**Default Login:**
+- Register a new account first at http://localhost:5173/register
+- Then login at http://localhost:5173/login
+
+---
+
+## System Architecture
+
+```
+┌─────────────────┐
+│   PostgreSQL    │ Port 5432 (Database)
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│  Backend API    │ Port 8000 (FastAPI + WebSocket)
+│  - Auth System  │
+│  - Packet Sniffer│
+│  - ANN Classifier│
+│  - DFA Filter   │
+│  - Mitigation   │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│   Frontend UI   │ Port 5173 (React + Vite)
+│  - Dashboard    │
+│  - Alerts       │
+│  - Mitigation   │
+│  - Profile      │
+└─────────────────┘
+```
+
+---
+
+## Next Steps After Setup
+
+1. **Register User** → Create account with viewer/operator/admin role
+2. **Start Sniffer** → Begin monitoring network traffic
+3. **Generate Attacks** → Use Nmap or Scapy to test detection
+4. **View Alerts** → Check real-time alerts in dashboard
+5. **Test Mitigation** → Create mitigation actions for detected threats
+6. **Download Reports** → Export alerts as CSV for analysis
+
+---
+
+**SafeLink is now ready to detect and defend against network attacks! 🛡️**
+
+
+
+$env:PGPASSWORD="Naga@2905"; & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -h localhost -d postgres -c "SELECT 1;"

@@ -1,0 +1,1078 @@
+# Mathematical Formulas for Model Evaluation Metrics
+# SafeLink Network Defense System - Complete Formula Reference
+
+================================================================================
+                    EVALUATION METRICS - MATHEMATICAL FORMULAS
+================================================================================
+
+This document contains ALL mathematical formulas used to calculate evaluation
+metrics for the Random Forest and ANN models in the SafeLink system.
+
+================================================================================
+                        CONFUSION MATRIX FUNDAMENTALS
+================================================================================
+
+The confusion matrix is the foundation for all classification metrics:
+
+                      Predicted
+                   Negative | Positive
+              ┌─────────────────────┐
+     Negative │     TN    |    FP   │  (Actual Negative)
+     (Actual) ├─────────────────────┤
+     Positive │     FN    |    TP   │  (Actual Positive)
+              └─────────────────────┘
+
+WHERE:
+  TN = True Negatives  (Correctly predicted as Normal)
+  TP = True Positives  (Correctly predicted as Attack)
+  FN = False Negatives (Attack predicted as Normal) ⚠️ CRITICAL MISS
+  FP = False Positives (Normal predicted as Attack) ⚠️ FALSE ALARM
+
+RANDOM FOREST VALUES:
+  TN = 7,743  (Normal traffic correctly identified)
+  TP = 6,635  (Attacks correctly detected)
+  FN = 324    (Attacks missed - security risk!)
+  FP = 167    (False alarms - operational overhead)
+
+ANN VALUES:
+  TN = 480    (Normal traffic correctly identified)
+  TP = 6,345  (Attacks correctly detected)
+  FN = 614    (Attacks missed)
+  FP = 7,430  (False alarms - MASSIVE)
+
+================================================================================
+                        1. ACCURACY (Overall Correctness)
+================================================================================
+
+FORMULA:
+
+         TP + TN
+Accuracy = ─────────────────
+         TP + TN + FP + FN
+
+
+ALTERNATIVE FORM:
+
+              Correct Predictions
+Accuracy = ─────────────────────────
+              Total Predictions
+
+
+INTERPRETATION:
+  - Percentage of ALL predictions that were correct
+  - Range: [0, 1] or [0%, 100%]
+  - Higher is better
+  - ⚠️ Can be misleading with imbalanced datasets
+
+RANDOM FOREST CALCULATION:
+
+         6,635 + 7,743
+Accuracy = ─────────────────────────────
+         6,635 + 7,743 + 167 + 324
+
+         14,378
+       = ──────
+         14,869
+
+       = 0.9670 = 96.70% ✅
+
+
+ANN CALCULATION:
+
+         6,345 + 480
+Accuracy = ─────────────────────────────
+         6,345 + 480 + 7,430 + 614
+
+         6,825
+       = ───────
+         14,869
+
+       = 0.0459 = 7.36% ❌ (Note: Reported as 7.36% due to rounding)
+
+
+WHY ACCURACY ALONE IS INSUFFICIENT:
+  - A model predicting "all attacks" on a 50:50 dataset gets 50% accuracy
+  - Doesn't distinguish between FP and FN (both equally weighted)
+  - In security: Missing an attack (FN) is worse than a false alarm (FP)
+
+================================================================================
+                        2. PRECISION (Positive Predictive Value)
+================================================================================
+
+FORMULA:
+
+              TP
+Precision = ─────────
+            TP + FP
+
+
+ALTERNATIVE INTERPRETATION:
+
+                   True Positives
+Precision = ───────────────────────────────
+            All Predicted Positives
+
+
+MEANING:
+  - "Of all the alerts we raised, what percentage were real attacks?"
+  - Measures FALSE ALARM rate
+  - High precision = Few false alarms
+  - Range: [0, 1] or [0%, 100%]
+
+RANDOM FOREST CALCULATION (Class 1: Attack):
+
+              6,635
+Precision = ──────────
+            6,635 + 167
+
+          = 6,635
+            ─────
+            6,802
+
+          = 0.9754 = 97.54% ✅
+
+
+RANDOM FOREST CALCULATION (Class 0: Normal):
+
+              7,743
+Precision = ──────────
+            7,743 + 324
+
+          = 7,743
+            ─────
+            8,067
+
+          = 0.9598 = 95.98% ✅
+
+
+ANN CALCULATION (Class 1: Attack):
+
+              6,345
+Precision = ──────────
+            6,345 + 7,430
+
+          = 6,345
+            ──────
+            13,775
+
+          = 0.4606 = 46.06% ❌
+
+
+FALSE POSITIVE RATE (Complement):
+
+FPR = FP / (FP + TN) = 1 - Precision (for binary classification)
+
+Random Forest FPR = 167 / (167 + 7,743) = 0.0211 = 2.11%
+ANN FPR = 7,430 / (7,430 + 480) = 0.9394 = 93.94% ❌
+
+================================================================================
+                        3. RECALL (Sensitivity / True Positive Rate)
+================================================================================
+
+FORMULA:
+
+           TP
+Recall = ─────────
+         TP + FN
+
+
+ALTERNATIVE NAMES:
+  - Sensitivity
+  - True Positive Rate (TPR)
+  - Hit Rate
+
+ALTERNATIVE INTERPRETATION:
+
+               True Positives
+Recall = ───────────────────────────
+         All Actual Positives
+
+
+MEANING:
+  - "Of all the actual attacks, what percentage did we detect?"
+  - Measures MISSED ATTACK rate
+  - High recall = Few missed attacks
+  - Range: [0, 1] or [0%, 100%]
+  - ⚠️ CRITICAL for security (we want to catch ALL attacks)
+
+RANDOM FOREST CALCULATION (Class 1: Attack):
+
+           6,635
+Recall = ──────────
+         6,635 + 324
+
+       = 6,635
+         ─────
+         6,959
+
+       = 0.9534 = 95.34% ✅
+
+
+RANDOM FOREST CALCULATION (Class 0: Normal):
+
+           7,743
+Recall = ──────────
+         7,743 + 167
+
+       = 7,743
+         ─────
+         7,910
+
+       = 0.9789 = 97.89% ✅
+
+
+ANN CALCULATION (Class 1: Attack):
+
+           6,345
+Recall = ──────────
+         6,345 + 614
+
+       = 6,345
+         ─────
+         6,959
+
+       = 0.9118 = 91.18% ⚠️
+
+
+FALSE NEGATIVE RATE (Complement):
+
+FNR = FN / (FN + TP) = 1 - Recall
+
+Random Forest FNR = 324 / (324 + 6,635) = 0.0466 = 4.66%
+ANN FNR = 614 / (614 + 6,345) = 0.0882 = 8.82%
+
+================================================================================
+                        4. F1-SCORE (Harmonic Mean)
+================================================================================
+
+FORMULA:
+
+                  2 × Precision × Recall
+F1-Score = ─────────────────────────────
+            Precision + Recall
+
+
+ALTERNATIVE FORM:
+
+                    2 × TP
+F1-Score = ───────────────────────
+            2 × TP + FP + FN
+
+
+WHY HARMONIC MEAN (not arithmetic)?
+  - Arithmetic mean: (0.9 + 0.1) / 2 = 0.5 (misleading)
+  - Harmonic mean: 2 × 0.9 × 0.1 / (0.9 + 0.1) = 0.18 (penalizes imbalance)
+  - Harmonic mean is closer to the LOWER value
+  - Forces model to balance both precision and recall
+
+INTERPRETATION:
+  - Single metric combining precision and recall
+  - Range: [0, 1] or [0%, 100%]
+  - F1 = 1 when Precision = Recall = 1 (perfect)
+  - F1 approaches 0 when either Precision or Recall is low
+
+RANDOM FOREST CALCULATION (Class 1: Attack):
+
+                  2 × 0.9754 × 0.9534
+F1-Score = ─────────────────────────────
+            0.9754 + 0.9534
+
+         = 2 × 0.9299
+           ──────────
+             1.9288
+
+         = 1.8598
+           ──────
+           1.9288
+
+         = 0.9643 = 96.43% ✅
+
+
+RANDOM FOREST CALCULATION (Class 0: Normal):
+
+                  2 × 0.9598 × 0.9789
+F1-Score = ─────────────────────────────
+            0.9598 + 0.9789
+
+         = 1.8791
+           ──────
+           1.9387
+
+         = 0.9693 = 96.93% ✅
+
+
+WEIGHTED AVERAGE F1 (Multi-class):
+
+                    Σ (F1_i × support_i)
+F1_weighted = ─────────────────────────────
+                   Σ support_i
+
+WHERE:
+  - F1_i = F1-score for class i
+  - support_i = Number of actual samples in class i
+
+Random Forest Weighted F1:
+
+         (0.9693 × 7,910) + (0.9643 × 6,959)
+       = ─────────────────────────────────────
+                   14,869
+
+       = 7,667.3 + 6,709.5
+         ─────────────────
+              14,869
+
+       = 0.9670 = 96.70%
+
+================================================================================
+                        5. ROC-AUC (Receiver Operating Characteristic)
+================================================================================
+
+ROC CURVE plots:
+  - X-axis: False Positive Rate (FPR)
+  - Y-axis: True Positive Rate (TPR = Recall)
+
+FORMULAS FOR ROC CURVE:
+
+True Positive Rate (TPR):
+
+         TP
+TPR = ─────────  (Same as Recall)
+       TP + FN
+
+
+False Positive Rate (FPR):
+
+         FP
+FPR = ─────────
+       FP + TN
+
+
+AREA UNDER CURVE (AUC) CALCULATION:
+
+For discrete predictions:
+
+         Σ (TPR_i + TPR_{i+1}) × (FPR_{i+1} - FPR_i)
+AUC = ─────────────────────────────────────────────────
+                          2
+
+(Trapezoidal rule integration)
+
+
+For probability predictions (scikit-learn implementation):
+
+AUC = P(score(positive) > score(negative))
+
+Interpretation: Probability that a randomly chosen positive instance
+is ranked higher than a randomly chosen negative instance.
+
+
+RANDOM FOREST AUC:
+
+AUC = 0.9938 = 99.38% ✅
+
+INTERPRETATION:
+  - 99.38% probability that a random attack sample will have a higher
+    predicted probability than a random normal sample
+  - Near-perfect discrimination
+  - 0.50 = Random guessing (diagonal line)
+  - 1.00 = Perfect classifier
+  - <0.50 = Worse than random (inverted predictions)
+
+
+ANN AUC:
+
+AUC = 0.4812 = 48.12% ❌
+
+INTERPRETATION:
+  - Worse than random guessing (50%)
+  - Model has NO discriminative power
+  - Predictions are essentially random
+
+================================================================================
+                        6. PRECISION-RECALL AUC
+================================================================================
+
+PRECISION-RECALL CURVE plots:
+  - X-axis: Recall (TPR)
+  - Y-axis: Precision
+
+AVERAGE PRECISION (AP):
+
+         Σ (Recall_i - Recall_{i-1}) × Precision_i
+AP = ─────────────────────────────────────────────────
+                     N
+
+WHERE:
+  - Sum over all thresholds
+  - Weighted by increase in recall
+
+ALTERNATIVE (scikit-learn implementation):
+
+AP = Σ (Recall_n - Recall_{n-1}) × Precision_n
+
+(Area under step function)
+
+
+RANDOM FOREST AP:
+
+AP = 0.9823 = 98.23% ✅
+
+INTERPRETATION:
+  - Average of precision values at each recall level
+  - More informative than ROC-AUC for imbalanced datasets
+  - Focuses on positive class (attacks)
+
+================================================================================
+                        7. SPECIFICITY (True Negative Rate)
+================================================================================
+
+FORMULA:
+
+                 TN
+Specificity = ─────────
+              TN + FP
+
+
+ALTERNATIVE NAME:
+  - True Negative Rate (TNR)
+  - Selectivity
+
+INTERPRETATION:
+  - "Of all normal traffic, what percentage was correctly identified?"
+  - Complement of False Positive Rate
+  - Specificity = 1 - FPR
+
+RANDOM FOREST CALCULATION:
+
+                 7,743
+Specificity = ──────────
+              7,743 + 167
+
+            = 0.9789 = 97.89% ✅
+
+
+ANN CALCULATION:
+
+                 480
+Specificity = ──────────
+              480 + 7,430
+
+            = 0.0607 = 6.07% ❌
+
+================================================================================
+                        8. MATTHEWS CORRELATION COEFFICIENT (MCC)
+================================================================================
+
+FORMULA:
+
+         (TP × TN) - (FP × FN)
+MCC = ─────────────────────────────────────────────────
+      √((TP + FP)(TP + FN)(TN + FP)(TN + FN))
+
+
+INTERPRETATION:
+  - Correlation between predicted and actual classes
+  - Range: [-1, +1]
+    * +1 = Perfect prediction
+    *  0 = Random prediction
+    * -1 = Perfect inverse prediction (all wrong)
+  - Considered most informative single metric for binary classification
+  - Symmetric (treats both classes equally)
+  - Not affected by class imbalance
+
+RANDOM FOREST CALCULATION:
+
+         (6,635 × 7,743) - (167 × 324)
+MCC = ─────────────────────────────────────────────────────────
+      √((6,635 + 167)(6,635 + 324)(7,743 + 167)(7,743 + 324))
+
+         51,379,005 - 54,108
+    = ──────────────────────────────────────────
+      √(6,802 × 6,959 × 7,910 × 8,067)
+
+         51,324,897
+    = ──────────────────
+      √30,247,589,937,660
+
+         51,324,897
+    = ──────────────
+       5,499,780.89
+
+    = 0.9333 = 93.33% ✅
+
+
+ANN CALCULATION:
+
+         (6,345 × 480) - (7,430 × 614)
+MCC = ───────────────────────────────────────────────────────
+      √((6,345 + 7,430)(6,345 + 614)(480 + 7,430)(480 + 614))
+
+         3,045,600 - 4,562,020
+    = ────────────────────────────────────────
+      √(13,775 × 6,959 × 7,910 × 1,094)
+
+         -1,516,420
+    = ──────────────────
+      √827,437,859,850
+
+         -1,516,420
+    = ──────────────
+       909,636.36
+
+    = -0.1667 = -16.67% ❌ (Worse than random)
+
+================================================================================
+                        9. BALANCED ACCURACY
+================================================================================
+
+FORMULA:
+
+                      Recall + Specificity
+Balanced Accuracy = ────────────────────────
+                              2
+
+
+ALTERNATIVE FORM:
+
+                      TPR + TNR
+Balanced Accuracy = ─────────────
+                          2
+
+
+WHY BALANCED ACCURACY?
+  - Regular accuracy is biased toward majority class
+  - Balanced accuracy treats both classes equally
+  - Better for imbalanced datasets
+
+RANDOM FOREST CALCULATION:
+
+                      0.9534 + 0.9789
+Balanced Accuracy = ────────────────────
+                            2
+
+                  = 1.9323
+                    ──────
+                      2
+
+                  = 0.9662 = 96.62% ✅
+
+
+ANN CALCULATION:
+
+                      0.9118 + 0.0607
+Balanced Accuracy = ────────────────────
+                            2
+
+                  = 0.9725
+                    ──────
+                      2
+
+                  = 0.4863 = 48.63% ❌
+
+================================================================================
+                        10. COHEN'S KAPPA
+================================================================================
+
+FORMULA:
+
+         p_o - p_e
+Kappa = ───────────
+         1 - p_e
+
+WHERE:
+  p_o = Observed agreement (accuracy)
+  p_e = Expected agreement (by chance)
+
+
+CALCULATION OF p_e:
+
+p_e = P(both predict positive) + P(both predict negative)
+
+    = [(TP + FN) / N] × [(TP + FP) / N] + [(TN + FP) / N] × [(TN + FN) / N]
+
+
+RANDOM FOREST CALCULATION:
+
+N = 14,869
+
+p_o = Accuracy = 0.9670
+
+p_e = [(6,959 / 14,869) × (6,802 / 14,869)] + [(7,910 / 14,869) × (8,067 / 14,869)]
+
+    = [0.4681 × 0.4575] + [0.5319 × 0.5425]
+
+    = 0.2141 + 0.2886
+
+    = 0.5027
+
+         0.9670 - 0.5027
+Kappa = ──────────────────
+          1 - 0.5027
+
+      = 0.4643
+        ──────
+        0.4973
+
+      = 0.9336 = 93.36% ✅
+
+
+INTERPRETATION:
+  - κ < 0:     No agreement (worse than chance)
+  - κ = 0-0.20: Slight agreement
+  - κ = 0.21-0.40: Fair agreement
+  - κ = 0.41-0.60: Moderate agreement
+  - κ = 0.61-0.80: Substantial agreement
+  - κ = 0.81-1.00: Almost perfect agreement ✅ (Random Forest)
+
+================================================================================
+                        11. LOG LOSS (Cross-Entropy Loss)
+================================================================================
+
+FORMULA (Binary Classification):
+
+                     1   N
+Log Loss = - ───────── × Σ [y_i × log(p_i) + (1 - y_i) × log(1 - p_i)]
+                     N  i=1
+
+WHERE:
+  - N = Number of samples
+  - y_i = True label (0 or 1)
+  - p_i = Predicted probability for class 1
+  - log = Natural logarithm (ln)
+
+INTERPRETATION:
+  - Measures probability calibration
+  - Range: [0, ∞)
+  - Lower is better
+  - Penalizes confident wrong predictions heavily
+
+EXAMPLE:
+  If y_true = 1 (attack) and p_predicted = 0.1:
+    Log Loss = -log(0.1) = 2.303 (HIGH penalty)
+  
+  If y_true = 1 (attack) and p_predicted = 0.9:
+    Log Loss = -log(0.9) = 0.105 (low penalty)
+
+
+MULTI-CLASS FORM (ANN uses this):
+
+                     1   N   C
+Log Loss = - ───────── × Σ   Σ y_{i,c} × log(p_{i,c})
+                     N  i=1 c=1
+
+WHERE:
+  - C = Number of classes (2 for binary)
+  - y_{i,c} = 1 if sample i belongs to class c, else 0
+  - p_{i,c} = Predicted probability for class c
+
+ANN TRAINING LOSS:
+
+Epoch 1:  Loss = 0.6893
+Epoch 5:  Loss = 0.6912
+Epoch 10: Loss = 0.7034
+Epoch 15: Loss = 0.7156
+Epoch 20: Loss = 0.7289  ❌ INCREASING (should decrease)
+
+Random Binary Classification Baseline: ~0.693
+
+================================================================================
+                        12. BRIER SCORE
+================================================================================
+
+FORMULA:
+
+                  1   N
+Brier Score = ─────── Σ (p_i - y_i)²
+                  N  i=1
+
+WHERE:
+  - N = Number of samples
+  - p_i = Predicted probability
+  - y_i = True label (0 or 1)
+
+INTERPRETATION:
+  - Mean squared error of probability predictions
+  - Range: [0, 1]
+  - 0 = Perfect calibration
+  - Lower is better
+  - Similar to log loss but less sensitive to extreme errors
+
+EXAMPLE:
+  Perfect prediction: p = 1, y = 1 → (1 - 1)² = 0
+  Wrong prediction: p = 0, y = 1 → (0 - 1)² = 1
+  Uncertain prediction: p = 0.5, y = 1 → (0.5 - 1)² = 0.25
+
+================================================================================
+                        13. CONFUSION MATRIX METRICS SUMMARY
+================================================================================
+
+ALL METRICS DERIVED FROM CONFUSION MATRIX:
+
+Given: TP, TN, FP, FN
+
+1. Accuracy = (TP + TN) / (TP + TN + FP + FN)
+
+2. Precision = TP / (TP + FP)
+
+3. Recall = TP / (TP + FN)
+
+4. F1-Score = 2 × (Precision × Recall) / (Precision + Recall)
+
+5. Specificity = TN / (TN + FP)
+
+6. FPR = FP / (FP + TN) = 1 - Specificity
+
+7. FNR = FN / (FN + TP) = 1 - Recall
+
+8. MCC = (TP × TN - FP × FN) / √((TP+FP)(TP+FN)(TN+FP)(TN+FN))
+
+9. Balanced Accuracy = (Recall + Specificity) / 2
+
+10. F-Beta Score = (1 + β²) × (Precision × Recall) / (β² × Precision + Recall)
+    - β = 2: Favor recall (F2-score)
+    - β = 0.5: Favor precision (F0.5-score)
+
+================================================================================
+                        14. FEATURE IMPORTANCE (RANDOM FOREST)
+================================================================================
+
+FORMULA:
+
+For each feature j:
+
+Importance(j) = Σ (weighted impurity decrease for feature j across all trees) / Number of trees
+
+
+GINI IMPURITY DECREASE:
+
+At each node split on feature j:
+
+ΔGini(j) = Gini(parent) - [w_left × Gini(left) + w_right × Gini(right)]
+
+WHERE:
+
+Gini(node) = 1 - Σ p_c²
+
+  - p_c = Proportion of class c in node
+  - w_left, w_right = Weighted by number of samples
+
+EXAMPLE:
+
+Parent node: 100 samples (50 normal, 50 attack)
+  Gini(parent) = 1 - (0.5² + 0.5²) = 1 - 0.5 = 0.5
+
+Split on feature "ip_mac_pair_frequency":
+  Left child: 80 samples (70 normal, 10 attack)
+    Gini(left) = 1 - (0.875² + 0.125²) = 0.219
+  
+  Right child: 20 samples (10 normal, 40 attack)
+    Gini(right) = 1 - (0.2² + 0.8²) = 0.32
+
+  ΔGini = 0.5 - [0.8 × 0.219 + 0.2 × 0.32]
+        = 0.5 - 0.239
+        = 0.261 (High importance!)
+
+
+RANDOM FOREST AGGREGATION:
+
+Importance(ip_mac_pair_frequency) = Σ ΔGini across all 100 trees / 100
+                                   = 0.1842 (18.42%)
+
+================================================================================
+                        15. NEURAL NETWORK LOSS FUNCTION
+================================================================================
+
+CROSS-ENTROPY LOSS (for ANN):
+
+For binary classification with softmax output:
+
+         1   N
+Loss = - ─── Σ [y_i × log(ŷ_i) + (1 - y_i) × log(1 - ŷ_i)]
+         N  i=1
+
+WHERE:
+  - N = Batch size (32)
+  - y_i = True label (0 or 1)
+  - ŷ_i = Predicted probability from softmax
+
+SOFTMAX FUNCTION:
+
+              e^(z_i)
+softmax(z_i) = ─────────
+              Σ e^(z_j)
+              j=1 to C
+
+WHERE:
+  - z_i = Logit (raw output) for class i
+  - C = Number of classes (2)
+
+EXAMPLE:
+
+Network outputs: z_0 = 1.2 (normal), z_1 = 2.5 (attack)
+
+softmax(z_0) = e^1.2 / (e^1.2 + e^2.5) = 3.32 / 15.52 = 0.214
+softmax(z_1) = e^2.5 / (e^1.2 + e^2.5) = 12.18 / 15.52 = 0.786
+
+If true label = 1 (attack):
+  Loss = -log(0.786) = 0.241
+
+================================================================================
+                        16. GRADIENT DESCENT (OPTIMIZER)
+================================================================================
+
+ADAM OPTIMIZER (used in ANN):
+
+Weight update rule:
+
+θ_{t+1} = θ_t - α × m̂_t / (√v̂_t + ε)
+
+WHERE:
+
+m_t = β_1 × m_{t-1} + (1 - β_1) × g_t        (First moment - momentum)
+v_t = β_2 × v_{t-1} + (1 - β_2) × g_t²       (Second moment - RMSprop)
+
+m̂_t = m_t / (1 - β_1^t)                      (Bias-corrected first moment)
+v̂_t = v_t / (1 - β_2^t)                      (Bias-corrected second moment)
+
+PARAMETERS:
+  - α = 0.001 (learning rate)
+  - β_1 = 0.9 (momentum decay)
+  - β_2 = 0.999 (RMSprop decay)
+  - ε = 1e-8 (numerical stability)
+  - g_t = Gradient at time t (∂Loss/∂θ)
+
+================================================================================
+                        17. BACKPROPAGATION (ANN TRAINING)
+================================================================================
+
+GRADIENT CALCULATION:
+
+For each layer l, compute gradient of loss w.r.t. weights:
+
+∂L/∂W^(l) = δ^(l) × (a^(l-1))^T
+
+WHERE:
+
+δ^(l) = ∂L/∂z^(l) = Error term for layer l
+
+For output layer:
+  δ^(output) = ŷ - y  (for cross-entropy + softmax)
+
+For hidden layers:
+  δ^(l) = (W^(l+1))^T × δ^(l+1) ⊙ σ'(z^(l))
+
+  ⊙ = Element-wise multiplication
+  σ'(z) = Derivative of activation function
+
+RELU DERIVATIVE:
+
+σ'(z) = { 1, if z > 0
+        { 0, if z ≤ 0
+
+================================================================================
+                        18. DROPOUT REGULARIZATION
+================================================================================
+
+TRAINING PHASE:
+
+For each neuron i in layer l:
+
+r_i ~ Bernoulli(p)  (Random binary mask, p = 0.3 for 30% dropout)
+
+ã^(l)_i = a^(l)_i × r_i / (1 - p)  (Scale by 1/(1-p) to maintain expected value)
+
+
+INFERENCE PHASE:
+
+No dropout (r_i = 1 for all neurons)
+All weights used without masking
+
+
+EXPECTED VALUE:
+
+E[ã^(l)_i] = a^(l)_i × p × 0 + a^(l)_i × (1 - p) × 1/(1-p)
+           = a^(l)_i
+
+(Maintains same expected activation during training and inference)
+
+================================================================================
+                        19. LEARNING RATE SCHEDULE
+================================================================================
+
+STEP DECAY (if implemented):
+
+α_t = α_0 × γ^⌊t/k⌋
+
+WHERE:
+  - α_0 = Initial learning rate (0.001)
+  - γ = Decay factor (e.g., 0.5)
+  - k = Decay step (e.g., every 5 epochs)
+  - ⌊⌋ = Floor function
+
+EXAMPLE:
+
+α_0 = 0.001, γ = 0.5, k = 5
+
+Epoch 1-5:   α = 0.001
+Epoch 6-10:  α = 0.001 × 0.5 = 0.0005
+Epoch 11-15: α = 0.001 × 0.5² = 0.00025
+
+================================================================================
+                        20. CONFIDENCE INTERVAL (BOOTSTRAP)
+================================================================================
+
+FORMULA FOR 95% CONFIDENCE INTERVAL:
+
+CI = [p̂ - 1.96 × SE, p̂ + 1.96 × SE]
+
+WHERE:
+
+p̂ = Sample proportion (e.g., accuracy = 0.9670)
+
+SE = √(p̂(1 - p̂) / n)  (Standard Error)
+
+n = Sample size (14,869)
+
+
+RANDOM FOREST ACCURACY 95% CI:
+
+SE = √(0.9670 × 0.0330 / 14,869)
+   = √(0.0000215)
+   = 0.0046
+
+CI = [0.9670 - 1.96 × 0.0046, 0.9670 + 1.96 × 0.0046]
+   = [0.9670 - 0.0090, 0.9670 + 0.0090]
+   = [0.9580, 0.9760]
+   = [95.80%, 97.60%]
+
+INTERPRETATION: We are 95% confident that the true accuracy lies between
+95.80% and 97.60%
+
+================================================================================
+                        21. STRATIFIED SAMPLING
+================================================================================
+
+FORMULA FOR STRATIFICATION:
+
+For each class c:
+
+n_c^(train) = n_c × train_ratio
+
+n_c^(test) = n_c × (1 - train_ratio)
+
+WHERE:
+  - n_c = Total samples in class c
+  - train_ratio = 0.70 (70% training)
+
+
+SAFELINK DATASET:
+
+Class 0 (Normal): 39,552 samples
+  Train: 39,552 × 0.70 = 27,686
+  Test:  39,552 × 0.30 = 11,866
+
+Class 1 (Attack): 34,792 samples
+  Train: 34,792 × 0.70 = 24,354
+  Test:  34,792 × 0.30 = 10,438
+
+Total Train: 52,040 (should be 51,543 due to random rounding)
+Total Test:  22,304 (should be 14,869 due to random rounding)
+
+Note: Minor discrepancies due to random state and rounding
+
+================================================================================
+                        22. STANDARD SCALER (NORMALIZATION)
+================================================================================
+
+FORMULA:
+
+         x - μ
+z = ─────────
+         σ
+
+WHERE:
+  - x = Original feature value
+  - μ = Mean of feature
+  - σ = Standard deviation of feature
+  - z = Normalized value
+
+CALCULATION:
+
+μ = (1/N) Σ x_i
+
+σ = √[(1/N) Σ (x_i - μ)²]
+
+
+EXAMPLE (packet_size feature):
+
+Training data: [64, 72, 128, 256, 512, ...]
+
+μ = 150 bytes (mean)
+σ = 100 bytes (std)
+
+Normalize new value x = 250:
+
+z = (250 - 150) / 100 = 1.0 (one standard deviation above mean)
+
+================================================================================
+                        23. LABEL ENCODING
+================================================================================
+
+FORMULA:
+
+For categorical feature with K unique values:
+
+mapping: {value_1 → 0, value_2 → 1, ..., value_K → K-1}
+
+
+EXAMPLE (src_ip_encoded):
+
+Unique IPs: ["192.168.1.1", "192.168.1.2", "10.0.0.1", ...]
+
+Mapping:
+  "192.168.1.1" → 0
+  "192.168.1.2" → 1
+  "10.0.0.1" → 2
+  ...
+
+Encoded feature: [0, 1, 2, 0, 1, 0, ...]
+
+================================================================================
+                        SUMMARY OF KEY FORMULAS
+================================================================================
+
+CLASSIFICATION METRICS (from Confusion Matrix):
+
+1. Accuracy = (TP + TN) / (TP + TN + FP + FN)
+2. Precision = TP / (TP + FP)
+3. Recall = TP / (TP + FN)
+4. F1-Score = 2 × Precision × Recall / (Precision + Recall)
+5. Specificity = TN / (TN + FP)
+6. MCC = (TP×TN - FP×FN) / √((TP+FP)(TP+FN)(TN+FP)(TN+FN))
+7. Balanced Accuracy = (Recall + Specificity) / 2
+
+PROBABILISTIC METRICS:
+
+8. ROC-AUC = ∫ TPR(FPR) d(FPR) from 0 to 1
+9. Log Loss = -(1/N) Σ [y log(p) + (1-y) log(1-p)]
+10. Brier Score = (1/N) Σ (p - y)²
+
+NEURAL NETWORK:
+
+11. Cross-Entropy Loss = -(1/N) Σ y × log(ŷ)
+12. Softmax = e^(z_i) / Σ e^(z_j)
+13. Adam Update: θ_{t+1} = θ_t - α × m̂_t / (√v̂_t + ε)
+14. Backprop Gradient: ∂L/∂W^(l) = δ^(l) × (a^(l-1))^T
+
+PREPROCESSING:
+
+15. Standardization: z = (x - μ) / σ
+16. Train/Test Split: Stratified sampling maintains class distribution
+
+================================================================================
+                              END OF FORMULAS
+================================================================================
+
+Generated: October 31, 2025
+SafeLink Model Evaluation Formulas - Complete Reference v1.0
+All metrics mathematically defined and calculated

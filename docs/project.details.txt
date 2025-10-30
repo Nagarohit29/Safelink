@@ -1,0 +1,598 @@
+# SafeLink - Network Defense System
+
+## Project Overview
+
+SafeLink is an intelligent network security solution designed to detect and mitigate ARP (Address Resolution Protocol) spoofing attacks in real-time. The system combines rule-based deterministic finite automaton (DFA) filtering with deep learning (Artificial Neural Network) to provide robust, accurate threat detection on local area networks.
+
+### What Does It Do?
+
+SafeLink monitors network traffic at the ARP layer, analyzing packets to identify spoofing attempts where attackers manipulate IP-to-MAC address mappings. The system:
+
+- **Captures live ARP packets** from network interfaces using packet sniffing
+- **Applies dual-layer detection**:
+  - DFA Filter: Rule-based detection for IP-MAC conflicts and gratuitous ARP floods
+  - ANN Classifier: Machine learning model trained on network flow features
+- **Generates real-time alerts** when suspicious activity is detected
+- **Stores alerts persistently** in PostgreSQL database
+- **Provides web-based dashboard** for monitoring threats, viewing attacker profiles, and controlling the sniffer
+
+---
+
+## Tech Stack
+
+### Backend Technologies
+
+- **Python 3.11**: Core runtime environment
+- **FastAPI**: Modern, high-performance web framework for REST API
+- **PyTorch 2.4+**: Deep learning framework for ANN implementation
+- **Scapy 2.5+**: Packet manipulation and sniffing library
+- **SQLAlchemy 2.0+**: ORM for database operations
+- **psycopg2-binary**: PostgreSQL adapter
+- **Pandas & NumPy**: Data processing and numerical operations
+- **scikit-learn**: Feature scaling, metrics, train/test splitting
+- **Matplotlib & Seaborn**: Visualization for training metrics and confusion matrices
+- **python-dotenv**: Environment configuration management
+- **tqdm**: Progress bars for training loops
+- **Uvicorn**: ASGI server for FastAPI
+
+### Frontend Technologies
+
+- **React 18**: Component-based UI library
+- **Vite 5**: Next-generation build tool and dev server
+- **React Router DOM 6**: Client-side routing
+- **Axios**: HTTP client for API communication
+- **Inter Font**: Modern typography via Google Fonts
+- **CSS3**: Custom styling with modern layout techniques
+
+### Database
+
+- **PostgreSQL**: Relational database for persistent alert storage
+- Schema: Single `alerts` table with columns:
+  - `id` (SERIAL PRIMARY KEY)
+  - `timestamp` (TIMESTAMP, auto-generated)
+  - `module` (VARCHAR, detection source: DFA/ANN)
+  - `reason` (TEXT, detailed alert description)
+  - `src_ip` (VARCHAR, attacker IP address)
+  - `src_mac` (VARCHAR, attacker MAC address)
+
+---
+
+## Algorithms & Models
+
+### 1. DFA (Deterministic Finite Automaton) Filter
+
+**Location**: `Backend/SafeLink_Backend/core/dfa_filter.py`
+
+**Detection Rules**:
+- **IP-MAC Binding Conflicts**: Tracks IP→MAC mappings; flags when an IP address suddenly associates with a different MAC address (classic ARP spoofing signature)
+- **Gratuitous ARP Flood Detection**: Monitors ARP packet frequency from each MAC address using a sliding time window (default: >5 packets in 5 seconds)
+- **Stateful Tracking**: Maintains in-memory dictionaries for IP-MAC mappings and deques for timestamp tracking
+
+**Algorithm Type**: Rule-based state machine with temporal analysis
+
+### 2. ANN (Artificial Neural Network) Classifier
+
+**Location**: `Backend/SafeLink_Backend/core/ann_classifier.py`
+
+**Architecture**:
+```
+TabularNet(
+  Input: Numeric flow features (variable dimension based on dataset)
+  → Linear(input_dim, 512) → BatchNorm1d → ReLU → Dropout(0.35)
+  → Linear(512, 256) → BatchNorm1d → ReLU → Dropout(0.35)
+  → Linear(256, 128) → BatchNorm1d → ReLU → Dropout(0.35)
+  → Linear(128, 64) → BatchNorm1d → ReLU → Dropout(0.35)
+  → Linear(64, 1) → Sigmoid (via BCEWithLogitsLoss)
+)
+```
+
+**Training Configuration**:
+- **Loss Function**: Binary Cross-Entropy with Logits (BCEWithLogitsLoss)
+- **Optimizer**: Adam with learning rate 0.001, weight decay 0.0001
+- **Scheduler**: ReduceLROnPlateau (patience=3, factor=0.5)
+- **Batch Size**: 256
+- **Epochs**: 50 (with early stopping)
+- **Early Stopping**: Patience=6 epochs, minimum delta=1e-4
+- **Data Split**: 80% train, 10% test, 10% deployment validation
+- **Feature Scaling**: StandardScaler (fit on training set, persisted to `models/scaler.pkl`)
+- **Random Seed**: 42 for reproducibility
+
+**Performance Metrics** (from `models/evaluation_summary.json`):
+- **Test Set**:
+  - Accuracy: 92.17%
+  - Precision: 92.29%
+  - Recall: 90.86%
+  - F1 Score: 91.57%
+  - AUC-ROC: 97.52%
+  - Best Threshold: 0.55 (F1-optimized)
+  
+- **Deployment Set**:
+  - Accuracy: 92.29%
+  - Precision: 92.76%
+  - Recall: 90.60%
+  - F1 Score: 91.67%
+  - AUC-ROC: 97.47%
+
+**Artifacts Generated**:
+- Trained model weights: `models/ann_model.pt`
+- Confusion matrices (test & deploy): PNG images and CSV files
+- ROC curves: PNG images for both evaluation sets
+- Loss curves: Training/validation loss over epochs
+- Threshold analysis: CSV files with precision/recall trade-offs across 17 threshold values (0.1 to 0.9)
+- Probability dumps: NumPy arrays of predicted probabilities and true labels
+- Classification reports: Text-based sklearn reports
+
+### 3. Feature Engineering
+
+**Location**: `Backend/SafeLink_Backend/core/utils.py`
+
+**Static Features** (from dataset):
+- Port numbers, protocol types, IP version
+- Bidirectional flow statistics (duration, packet counts, byte counts)
+- Packet inter-arrival times (min, mean, stddev, max)
+- Packet sizes (min, mean, stddev, max)
+- TCP flag counts (SYN, ACK, PSH, RST, FIN, CWR, ECE, URG)
+- Application-layer metadata (when available)
+
+**Live Packet Feature Extraction**:
+- Maps Scapy ARP/IP packet attributes to numeric feature vector
+- Computes inter-arrival times using timestamp tracking
+- Calculates frequency metrics via sliding window counters
+- Zero-fills unavailable features for compatibility with trained model
+
+---
+
+## Dataset
+
+**File**: `Backend/SafeLink_Backend/data/All_Labelled.csv`
+
+**Statistics**:
+- **Total Rows**: ~74,345 network flow records
+- **Features**: 70+ numeric columns derived from NetFlow/packet capture analysis
+- **Labels**: Binary classification
+  - `normal`: Legitimate ARP traffic
+  - `arp_spoof`/`spoof`: Attack traffic
+
+**Feature Categories**:
+1. **Basic Flow Identifiers**: Source/destination ports, protocol, IP version, VLAN/tunnel IDs
+2. **Temporal Features**: Timestamps (first seen, last seen), durations, inter-arrival times
+3. **Volume Metrics**: Packet counts, byte counts (bidirectional and per-direction)
+4. **Statistical Features**: Min/mean/stddev/max for packet sizes and inter-arrival times
+5. **Protocol Flags**: TCP flag presence indicators
+6. **Application Layer**: Application name, category, confidence scores, server names, fingerprints
+
+**Data Source**: Likely generated from controlled network experiments using tools like nfdump, Wireshark, or custom flow exporters, labeled manually or via ground-truth knowledge during attack simulations.
+
+**Preprocessing Pipeline**:
+- Numeric column extraction via Pandas dtype filtering
+- Missing value imputation (fillna with 0)
+- Label binarization (string parsing for "spoof" keywords)
+- StandardScaler normalization (z-score scaling)
+
+---
+
+## System Architecture
+
+### Backend Components
+
+1. **Main Entry Point** (`main.py`):
+   - CLI interface with argparse
+   - `--train`: Trains ANN model from CSV dataset
+   - `--sniff`: Starts packet sniffer with specified network interface
+   - `--model`: Path to trained model (default: `models/ann_model.pt`)
+   - Integrates AlertSystem and ANNDetector
+
+2. **REST API Server** (`api.py`):
+   - FastAPI application with CORS middleware
+   - **Endpoints**:
+     - `GET /alerts/latest`: Recent alerts (paginated, up to 200)
+     - `GET /alerts/history`: Historical alerts with offset/limit
+     - `GET /alerts/stats`: Aggregate statistics (total count, breakdown by module, latest timestamp)
+     - `GET /alerts/attackers`: Top offenders grouped by IP/MAC
+     - `GET /alerts/download`: CSV export of alert log
+     - `GET /network/devices`: List of all devices seen in alerts
+     - `GET /sniffer/status`: Current sniffer state (running, interface, uptime)
+     - `POST /sniffer/start`: Start packet capture on specified interface
+     - `POST /sniffer/stop`: Halt active sniffer
+     - `GET /live-feed`: Alias for latest alerts (optimized for real-time UI)
+
+3. **Packet Sniffer** (`core/packet_sniffer.py`):
+   - Wraps Scapy's `sniff()` and `AsyncSniffer` for ARP packet capture
+   - Filters: `filter="arp"` for ARP-only traffic
+   - Handler pipeline: DFA check → ANN inference → Alert generation
+   - Thread-safe manager (`SnifferManager`) for lifecycle control
+
+4. **Alert System** (`core/alert_system.py`):
+   - SQLAlchemy ORM with `Alert` model
+   - Automatic database connection pooling
+   - Dual logging: PostgreSQL + CSV file (`logs/alerts_log.csv`)
+   - Error-resilient with rollback on insert failure
+
+5. **Configuration** (`config/settings.py`):
+   - Environment variable loading via dotenv
+   - Configurable database credentials, model paths, hyperparameters
+   - Automatic directory creation for models, plots, logs
+
+6. **Utilities** (`core/utils.py`):
+   - Dataset loading and label parsing
+   - Scaler training and persistence
+   - Live packet feature extraction with state tracking
+
+7. **Testing Suite** (`tests/`):
+   - pytest framework with fixtures
+   - Unit tests for ANN, DFA, sniffer, alert system, database connectivity
+   - Mock-based packet simulation
+
+### Frontend Components
+
+1. **Application Shell** (`src/App.jsx`):
+   - React Router integration with NavLink-based sidebar
+   - Branded header: "SafeLink" logo with "SL" icon, tagline, navigation
+   - Layout: Fixed sidebar (260px) + flexible main content area
+   - Active route highlighting
+
+2. **Views**:
+   - **Dashboard** (`views/Dashboard.jsx`):
+     - Displays total alerts, latest alert timestamp, detection module breakdown
+     - Auto-refresh every 10 seconds
+     - Metric cards with visual chips
+   
+   - **Alerts** (`views/Alerts.jsx`):
+     - Live-updating table of recent alerts (auto-refresh: 5 seconds)
+     - Columns: Timestamp, Module, Source IP, Source MAC, Reason
+     - Download button for CSV export
+   
+   - **Attackers** (`views/Attackers.jsx`):
+     - Two-panel layout:
+       1. Suspected attackers table (IP, MAC, alert count, last seen)
+       2. All devices list with alert frequency
+     - Grouped by source IP/MAC
+   
+   - **Sniffer** (`views/Sniffer.jsx`):
+     - Control panel: Start/stop buttons, interface input field
+     - Status widget: Running state, active interface, uptime calculation
+     - Live feed table: Last 10 alerts captured by sniffer
+     - Auto-refresh intervals: Status (4s), Feed (5s)
+
+3. **Styling** (`src/index.css`):
+   - Modern design system with CSS custom properties
+   - Color palette: Dark sidebar (#111c34), light panels (#ffffff), accent blue (#38bdf8)
+   - Components: Cards, chips, buttons, tables, status boxes
+   - Responsive layout with media queries for mobile
+   - Gradient backgrounds, soft shadows, rounded corners (12px-18px radii)
+
+4. **API Integration** (`src/lib/api.js`):
+   - Axios instance with configurable base URL
+   - Environment variable support: `VITE_API_BASE_URL` (default: `http://127.0.0.1:8000`)
+   - 10-second timeout for all requests
+
+---
+
+## Tools & Development
+
+### Backend Tools
+- **pytest**: Unit testing with coverage tracking
+- **tqdm**: Real-time progress bars for training epochs and batches
+- **logging**: Structured logging with timestamps and severity levels
+- **python-dotenv**: `.env` file parsing for configuration
+- **Jupyter Notebook**: Exploratory training in `models/model_trainer.ipynb`
+
+### Frontend Tools
+- **Vite**: Fast HMR (Hot Module Replacement) dev server, optimized production builds
+- **ESLint**: Code quality and style enforcement
+- **PostCSS**: CSS processing pipeline
+- **Google Fonts**: CDN-hosted Inter font family
+
+### Infrastructure
+- **PostgreSQL Client Tools**: psql for manual database inspection
+- **Scapy**: Requires Npcap (Windows) or libpcap (Linux/Mac) for packet capture
+- **Virtual Environment**: Python venv for isolated dependency management
+
+---
+
+## Database Initialization
+
+The PostgreSQL database must be set up before running the backend API or sniffer.
+
+### Prerequisites
+
+1. **Install PostgreSQL**:
+   - Download from [postgresql.org](https://www.postgresql.org/download/)
+   - Note the `postgres` superuser password during installation
+
+2. **Create Database** (via psql or pgAdmin):
+   ```sql
+   CREATE DATABASE safelink_db;
+   ```
+
+3. **Configure Environment** (optional):
+   - Create `.env` file in `Backend/SafeLink_Backend/`:
+     ```env
+     DB_HOST=localhost
+     DB_PORT=5432
+     DB_NAME=safelink_db
+     DB_USER=postgres
+     DB_PASSWORD=your_password_here
+     ```
+
+### Initialize Schema
+
+Run the setup script to create the `alerts` table:
+
+```powershell
+# Activate virtual environment first
+.\venv\Scripts\Activate.ps1
+
+# Execute database initialization
+.\venv\Scripts\python.exe Backend\SafeLink_Backend\Scripts\setup_db.py
+```
+
+**Expected Output**:
+```
+[SafeLink] Connecting to database: safelink_db@localhost:5432 ...
+[SafeLink] ✅ Database initialized successfully.
+[SafeLink] ✅ 'alerts' table is ready for use.
+```
+
+**Troubleshooting**:
+- **Connection refused**: Verify PostgreSQL service is running (`net start postgresql-x64-16`)
+- **Authentication failed**: Check `.env` credentials match PostgreSQL user
+- **Database does not exist**: Create database manually via psql/pgAdmin
+
+---
+
+## Running the Project
+
+### One-Time Setup
+
+1. **Clone Repository** (if applicable):
+   ```powershell
+   git clone <repository-url>
+   cd coreproject
+   ```
+
+2. **Backend Setup**:
+   ```powershell
+   # Create virtual environment
+   python -m venv venv
+   
+   # Activate virtual environment
+   .\venv\Scripts\Activate.ps1
+   
+   # Install dependencies
+   pip install -r Backend\SafeLink_Backend\requirements.txt
+   ```
+
+3. **Frontend Setup**:
+   ```powershell
+   # Navigate to frontend directory
+   cd Frontend
+   
+   # Install Node dependencies
+   npm install
+   
+   # Return to project root
+   cd ..
+   ```
+
+4. **Database Initialization** (see previous section):
+   ```powershell
+   .\venv\Scripts\python.exe Backend\SafeLink_Backend\Scripts\setup_db.py
+   ```
+
+### Running Backend & Frontend Together
+
+#### Terminal 1: Backend API Server
+
+```powershell
+# Ensure virtual environment is activated
+.\venv\Scripts\Activate.ps1
+
+# Start FastAPI server with auto-reload
+uvicorn Backend.SafeLink_Backend.api:app --reload --host 127.0.0.1 --port 8000
+```
+
+**Expected Output**:
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [PID] using WatchFiles
+INFO:     Started server process [PID]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+```
+
+**API Documentation**: Navigate to `http://127.0.0.1:8000/docs` for interactive Swagger UI
+
+#### Terminal 2: Frontend Dev Server
+
+```powershell
+# Navigate to frontend directory
+cd Frontend
+
+# Start Vite development server
+npm run dev
+```
+
+**Expected Output**:
+```
+VITE v5.x.x  ready in XXX ms
+
+➜  Local:   http://127.0.0.1:5173/
+➜  Network: use --host to expose
+```
+
+#### Terminal 3: Packet Sniffer (Optional)
+
+For real-time ARP monitoring via CLI (alternative to using web UI):
+
+```powershell
+# Activate virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Start sniffer on specific interface (replace with your interface name)
+.\venv\Scripts\python.exe Backend\SafeLink_Backend\main.py --sniff --model Backend\SafeLink_Backend\models\ann_model.pt --interface "vEthernet (Default Switch)"
+```
+
+**Notes**:
+- Requires **Administrator privileges** on Windows for raw packet capture
+- Find interface names: `Get-NetAdapter | Select-Object Name, Status` (PowerShell)
+- On Linux/Mac: Use `ifconfig` or `ip addr` to list interfaces (e.g., `eth0`, `wlan0`)
+
+### Accessing the Application
+
+1. **Open Web Browser**: Navigate to `http://127.0.0.1:5173`
+2. **Dashboard Overview**: View aggregated alert statistics
+3. **Start Sniffer**:
+   - Click "Sniffer" in sidebar
+   - Enter network interface name (e.g., `"Wi-Fi"`, `"Ethernet"`, or `"vEthernet (Default Switch)"`)
+   - Click "Start Sniffer" button
+   - Monitor status widget for uptime and running state
+4. **Monitor Alerts**:
+   - "Alerts" tab shows live-updating table
+   - "Attackers" tab displays repeat offenders
+   - Download CSV from Alerts page for offline analysis
+
+### Production Deployment
+
+**Frontend Build**:
+```powershell
+cd Frontend
+npm run build
+# Static files generated in Frontend/dist/
+```
+
+**Backend Production Server**:
+```powershell
+# Install production ASGI server
+pip install gunicorn
+
+# Run with multiple workers
+gunicorn Backend.SafeLink_Backend.api:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+```
+
+**Security Considerations**:
+- Change default database credentials
+- Enable HTTPS/TLS for API endpoints
+- Implement authentication (JWT tokens recommended)
+- Restrict CORS origins in production
+- Run sniffer with least-privilege service accounts
+
+---
+
+## Training the Model (Optional)
+
+To retrain the ANN with updated dataset:
+
+```powershell
+# Activate virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Train model (generates new ann_model.pt, plots, and metrics)
+.\venv\Scripts\python.exe Backend\SafeLink_Backend\main.py --train
+```
+
+**Output Artifacts**:
+- `models/ann_model.pt`: Trained PyTorch model + scaler
+- `models/plots/`: Confusion matrices, ROC curves, loss curves (PNG)
+- `models/evaluation_summary.json`: Metrics for test and deploy sets
+- `models/threshold_metrics_*.csv`: Precision/recall analysis
+- `models/classification_report_*.txt`: Sklearn classification reports
+- `logs/training_progress.json`: Real-time epoch progress (for monitoring)
+
+---
+
+## Testing
+
+Run the complete test suite:
+
+```powershell
+# Activate virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Execute pytest from repository root
+pytest Backend/SafeLink_Backend/tests/ -v
+```
+
+**Test Coverage**:
+- ANN classifier inference and training utilities
+- DFA filter rule logic
+- Packet sniffer handler pipeline
+- Alert system database operations
+- PostgreSQL connectivity
+
+---
+
+## Project Structure Summary
+
+```
+coreproject/
+├── Backend/
+│   └── SafeLink_Backend/
+│       ├── main.py                 # CLI entry point
+│       ├── api.py                  # FastAPI REST server
+│       ├── requirements.txt        # Python dependencies
+│       ├── config/
+│       │   ├── settings.py         # Environment configuration
+│       │   └── logger_config.py    # Logging setup
+│       ├── core/
+│       │   ├── alert_system.py     # Alert persistence
+│       │   ├── ann_classifier.py   # Neural network training/inference
+│       │   ├── dfa_filter.py       # Rule-based detection
+│       │   ├── packet_sniffer.py   # Scapy integration
+│       │   └── utils.py            # Feature engineering
+│       ├── data/
+│       │   └── All_Labelled.csv    # Training dataset
+│       ├── logs/
+│       │   ├── alerts_log.csv      # Alert archive
+│       │   └── training_progress.json
+│       ├── models/
+│       │   ├── ann_model.pt        # Trained model weights
+│       │   ├── scaler.pkl          # StandardScaler parameters
+│       │   ├── evaluation_summary.json
+│       │   └── plots/              # Visualization artifacts
+│       ├── Scripts/
+│       │   └── setup_db.py         # Database initialization
+│       └── tests/                  # Unit tests
+├── Frontend/
+│   ├── index.html                  # Entry HTML
+│   ├── package.json                # Node dependencies
+│   ├── vite.config.js              # Vite configuration
+│   └── src/
+│       ├── main.jsx                # React entry point
+│       ├── App.jsx                 # Application shell
+│       ├── index.css               # Global styles
+│       ├── lib/
+│       │   └── api.js              # Axios API client
+│       └── views/
+│           ├── Dashboard.jsx       # Stats overview
+│           ├── Alerts.jsx          # Alert table
+│           ├── Attackers.jsx       # Threat profiles
+│           └── Sniffer.jsx         # Sniffer control panel
+└── venv/                           # Python virtual environment (gitignored)
+```
+
+---
+
+## Future Enhancements
+
+1. **Real-Time WebSocket Feed**: Replace polling with WebSocket connections for instant alert push
+2. **Authentication & Authorization**: JWT-based access control with role-based permissions
+3. **Alert Pagination & Filtering**: Advanced search by date range, module, severity
+4. **Threat Intelligence Integration**: Enrich alerts with IP reputation lookups (AbuseIPDB, VirusTotal)
+5. **Automated Mitigation**: Integration with firewall APIs to auto-block detected attackers
+6. **Multi-Interface Support**: Concurrent monitoring of multiple network adapters
+7. **Model Retraining Pipeline**: Scheduled retraining with newly captured data
+8. **Dashboard Analytics**: Time-series graphs, geographic threat maps, MITRE ATT&CK mapping
+9. **Export Formats**: Support for SIEM integration (Syslog, CEF, STIX/TAXII)
+10. **Mobile-Responsive UI**: Optimized layouts for tablet/phone form factors
+
+---
+
+## License & Credits
+
+**Project**: SafeLink Network Defense System  
+**Purpose**: Educational demonstration of hybrid ML/rule-based intrusion detection  
+**Technologies**: Python, PyTorch, FastAPI, React, PostgreSQL  
+**Dataset**: Synthetic/captured network flows with labeled ARP spoofing samples  
+
+For production deployment, ensure compliance with local network monitoring regulations and privacy laws.
