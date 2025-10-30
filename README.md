@@ -3,8 +3,13 @@
 **Advanced Machine Learning-Based ARP Spoofing Detection System**
 
 [![Python Version](https://img.shields.io/badge/python-3.11.9-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Node Version](https://img.shields.io/badge/node-20.x-brightgreen.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](Backend/SafeLink_Backend/LICENSE)
+[![CI/CD](https://github.com/Nagarohit29/Safelink/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Nagarohit29/Safelink/actions)
+[![Deploy](https://github.com/Nagarohit29/Safelink/actions/workflows/vercel-deploy.yml/badge.svg)](https://github.com/Nagarohit29/Safelink/actions)
 [![Status](https://img.shields.io/badge/status-production--ready-brightgreen.svg)]()
+
+> 🔒 **Network Security** | 🤖 **Machine Learning** | 🎯 **96.70% Accuracy** | ⚡ **Real-time Detection**
 
 ## 📋 Overview
 
@@ -249,11 +254,57 @@ pytest tests/ --cov=. --cov-report=html
 ## 📚 Documentation
 
 - [Deployment Guide](DEPLOYMENT_GUIDE.md) - Production deployment
+- [Vercel Deployment](VERCEL_DEPLOYMENT.md) - Deploy to Vercel
+- [Git Deployment Checklist](GIT_DEPLOYMENT_CHECKLIST.md) - Pre-deployment checklist
 - [Architecture Details](paper_details/architecture.txt) - System architecture
 - [Tech Stack](techstack.txt) - Complete technology breakdown
 - [Model Results](modelsresults.txt) - Detailed model evaluation
 - [Formulas](formulasformodel.txt) - Mathematical formulas
 - [Limitations](paper_details/limitations.txt) - Known limitations
+
+## 🖼️ Screenshots
+
+<div align="center">
+
+### Dashboard
+> Real-time network monitoring and threat detection
+
+### Alert Management
+> Comprehensive alert history with detailed analysis
+
+### Threat Intelligence
+> Attacker profiling with AbuseIPDB integration
+
+*Screenshots coming soon - Deploy and see it in action!*
+
+</div>
+
+## 🚀 Live Demo
+
+Want to see SafeLink in action? 
+
+1. **Quick Local Demo:**
+   ```bash
+   git clone https://github.com/Nagarohit29/Safelink.git
+   cd Safelink
+   # Windows
+   .\start_development.ps1
+   # Linux/Mac
+   sudo ./start_development.sh
+   ```
+   Then open: http://localhost:5173
+
+2. **Deploy Your Own:**
+   - [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Nagarohit29/Safelink)
+   - See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) for setup instructions
+
+## ⚡ Quick Links
+
+- 📊 [GitHub Actions](https://github.com/Nagarohit29/Safelink/actions) - CI/CD Status
+- 📝 [Issues](https://github.com/Nagarohit29/Safelink/issues) - Report bugs or request features
+- 🔀 [Pull Requests](https://github.com/Nagarohit29/Safelink/pulls) - Contribute to the project
+- 📖 [Wiki](https://github.com/Nagarohit29/Safelink/wiki) - Additional documentation
+- 🌟 [Star this repo](https://github.com/Nagarohit29/Safelink) - Show your support!
 
 ## 🤝 Contributing
 
@@ -276,17 +327,23 @@ This project is licensed under the MIT License - see the [LICENSE](Backend/SafeL
 
 ## 🙏 Acknowledgments
 
-- scikit-learn team for Random Forest implementation
-- FastAPI framework for excellent API development
-- React team for frontend framework
-- Scapy community for packet manipulation library
+- [scikit-learn](https://scikit-learn.org/) - Random Forest implementation
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [React](https://react.dev/) - Frontend library
+- [Scapy](https://scapy.net/) - Packet manipulation
+- [Vite](https://vitejs.dev/) - Frontend build tool
 
-## 📧 Support
+## 📧 Support & Contact
 
-For issues, questions, or support:
-- Create a GitHub issue
-- Contact: admin@safelink-project.com
-- Documentation: See `/docs` folder
+**Having issues or questions?**
+
+- 🐛 [Report a Bug](https://github.com/Nagarohit29/Safelink/issues/new?labels=bug)
+- 💡 [Request a Feature](https://github.com/Nagarohit29/Safelink/issues/new?labels=enhancement)
+- 📖 [Documentation](docs/)
+- 💬 [Discussions](https://github.com/Nagarohit29/Safelink/discussions)
+
+**For security vulnerabilities:**
+Please email: security@safelink-project.com (Do not create public issues)
 
 ## 🗺️ Roadmap
 
@@ -306,12 +363,32 @@ For issues, questions, or support:
 
 ## 📈 Project Status
 
-- **Current Version:** 1.0
-- **Status:** Production-ready (with development support)
-- **Last Updated:** October 31, 2025
-- **Stability:** Stable
-- **Maintenance:** Active
+<div align="center">
+
+| Metric | Status |
+|--------|--------|
+| **Version** | 1.0.0 |
+| **Status** | ✅ Production Ready |
+| **Build** | ![CI/CD](https://github.com/Nagarohit29/Safelink/actions/workflows/ci-cd.yml/badge.svg) |
+| **Deployment** | ![Vercel](https://github.com/Nagarohit29/Safelink/actions/workflows/vercel-deploy.yml/badge.svg) |
+| **Last Updated** | October 31, 2025 |
+| **Stability** | Stable |
+| **Maintenance** | 🟢 Active |
+
+</div>
+
+## ⭐ Star History
+
+If you find this project useful, please consider giving it a star! ⭐
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Nagarohit29/Safelink&type=Date)](https://star-history.com/#Nagarohit29/Safelink&Date)
 
 ---
 
+<div align="center">
+
 **Built with ❤️ for network security**
+
+[🏠 Homepage](https://github.com/Nagarohit29/Safelink) • [📖 Documentation](docs/) • [🐛 Report Bug](https://github.com/Nagarohit29/Safelink/issues) • [✨ Request Feature](https://github.com/Nagarohit29/Safelink/issues)
+
+</div>
